@@ -33,7 +33,10 @@ pub struct SystemInfo {
     pub cpu_brand: String,
 }
 
-pub struct SystemState(pub Mutex<System>);
+pub struct SystemState {
+    pub system: Mutex<System>,
+    pub disks: Mutex<sysinfo::Disks>,
+}
 
 #[tauri::command]
 pub fn get_system_info() -> SystemInfo {
@@ -56,7 +59,7 @@ pub fn get_system_info() -> SystemInfo {
 
 #[tauri::command]
 pub fn get_system_metrics(state: State<'_, SystemState>) -> SystemMetrics {
-    let mut sys = state.0.lock().unwrap();
+    let mut sys = state.system.lock().unwrap();
     sys.refresh_cpu_usage();
     sys.refresh_memory();
 
@@ -73,10 +76,12 @@ pub fn get_system_metrics(state: State<'_, SystemState>) -> SystemMetrics {
         0.0
     };
 
-    // Disk info
+    // Reuse cached Disks, refresh only when needed
+    let mut disks = state.disks.lock().unwrap();
+    disks.refresh(true);
+
     let mut disk_total = 0u64;
     let mut disk_used = 0u64;
-    let disks = sysinfo::Disks::new_with_refreshed_list();
     for disk in disks.iter() {
         if disk.mount_point() == std::path::Path::new("/") {
             disk_total = disk.total_space();
@@ -103,7 +108,7 @@ pub fn get_system_metrics(state: State<'_, SystemState>) -> SystemMetrics {
 
 #[tauri::command]
 pub fn get_processes(state: State<'_, SystemState>) -> Vec<ProcessInfo> {
-    let mut sys = state.0.lock().unwrap();
+    let mut sys = state.system.lock().unwrap();
     sys.refresh_processes(ProcessesToUpdate::All, true);
 
     let mut procs: Vec<ProcessInfo> = sys

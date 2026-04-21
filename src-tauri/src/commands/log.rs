@@ -1,6 +1,11 @@
 use serde::{Deserialize, Serialize};
-use std::process::Stdio;
-use tokio::process::Command;
+use std::io::BufRead;
+use std::process::{Command, Stdio};
+use std::sync::mpsc::{channel, RecvTimeoutError};
+use std::time::Duration;
+
+const LOG_TIMEOUT_SECS: u64 = 5;
+const LOG_TIME_WINDOW: &str = "30s";
 
 #[derive(Deserialize)]
 pub struct LogQueryOptions {
@@ -16,74 +21,82 @@ pub struct SystemLogEntry {
     pub message: String,
 }
 
+/// Run log command with strict timeout.
+/// Uses synchronous std::process inside spawn_blocking for reliable process control.
 #[tauri::command]
 pub async fn get_system_logs(options: LogQueryOptions) -> Result<Vec<SystemLogEntry>, String> {
-    let limit = options.limit.unwrap_or(200);
-    let source = options.source.as_deref().unwrap_or("system");
+    let limit = options.limit.unwrap_or(100).min(500);
+    let source = options.source.unwrap_or_else(|| "system".to_string());
 
-    let output = if cfg!(target_os = "macos") {
-        // macOS: use log command for system logs
+    tokio::task::spawn_blocking(move || {
+        run_log_command_sync(source, limit)
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+fn run_log_command_sync(source: String, limit: usize) -> Result<Vec<SystemLogEntry>, String> {
+    let mut cmd = if cfg!(target_os = "macos") {
+        let mut c = Command::new("log");
+        c.args(["show", "--last", LOG_TIME_WINDOW, "--style", "compact"]);
         if source == "kernel" {
-            Command::new("log")
-                .args(["show", "--last", "1h", "--predicate", "sender == 'kernel'", "--style", "compact"])
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .output()
-                .await
-        } else {
-            Command::new("log")
-                .args(["show", "--last", "30m", "--style", "compact"])
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .output()
-                .await
+            c.args(["--predicate", "sender == 'kernel'"]);
         }
+        c
     } else if cfg!(target_os = "linux") {
-        // Linux: journalctl or /var/log/syslog
-        Command::new("journalctl")
-            .args(["-n", &limit.to_string(), "--no-pager", "-o", "short-iso"])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
-            .await
+        let mut c = Command::new("journalctl");
+        c.args(["-n", "100", "--no-pager", "-o", "short-iso"]);
+        c
     } else {
-        // Windows: wevtutil
-        Command::new("wevtutil")
-            .args(["qe", "System", "/c:&limit.to_string()", "/f:text"])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
-            .await
+        let mut c = Command::new("wevtutil");
+        c.args(["qe", "System", "/c:100", "/f:text"]);
+        c
     };
 
-    let output = output.map_err(|e| format!("Failed to read logs: {}", e))?;
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut logs = Vec::new();
+    cmd.stdout(Stdio::piped()).stderr(Stdio::null());
 
-    if cfg!(target_os = "macos") {
-        for line in stdout.lines().rev().take(limit) {
-            if let Some(entry) = parse_macos_log_line(line) {
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("Failed to spawn log command: {}", e))?;
+
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or("Failed to capture stdout")?;
+
+    let (tx, rx) = channel();
+
+    // Spawn reader thread to consume stdout
+    std::thread::spawn(move || {
+        let reader = std::io::BufReader::new(stdout);
+        let mut logs = Vec::new();
+        for line in reader.lines().flatten() {
+            if let Some(entry) = parse_macos_log_line(&line) {
                 logs.push(entry);
+                if logs.len() >= limit {
+                    break;
+                }
             }
         }
-    } else if cfg!(target_os = "linux") {
-        for line in stdout.lines().rev().take(limit) {
-            if let Some(entry) = parse_linux_log_line(line) {
-                logs.push(entry);
-            }
+        let _ = tx.send(logs);
+    });
+
+    // Wait for reader to finish or timeout
+    let mut logs = match rx.recv_timeout(Duration::from_secs(LOG_TIMEOUT_SECS)) {
+        Ok(logs) => logs,
+        Err(RecvTimeoutError::Timeout) => {
+            let _ = child.kill();
+            Vec::new()
         }
-    } else {
-        for line in stdout.lines().rev().take(limit) {
-            if let Some(entry) = parse_windows_log_line(line) {
-                logs.push(entry);
-            }
-        }
-    }
+        Err(RecvTimeoutError::Disconnected) => Vec::new(),
+    };
+
+    // Ensure child is reaped
+    let _ = child.wait();
 
     // Reverse back to chronological order
     logs.reverse();
 
-    // Fallback if no logs parsed
     if logs.is_empty() {
         logs.push(SystemLogEntry {
             timestamp: chrono::Local::now().to_rfc3339(),
@@ -97,7 +110,6 @@ pub async fn get_system_logs(options: LogQueryOptions) -> Result<Vec<SystemLogEn
 }
 
 fn parse_macos_log_line(line: &str) -> Option<SystemLogEntry> {
-    // Compact format: "2024-01-20 10:23:45.123456+0800  process[pid]: message"
     let parts: Vec<&str> = line.splitn(3, ' ').collect();
     if parts.len() < 3 {
         return None;
@@ -106,17 +118,13 @@ fn parse_macos_log_line(line: &str) -> Option<SystemLogEntry> {
     let timestamp = format!("{}T{}", parts[0], parts[1]);
     let rest = parts[2];
 
-    // Try to extract process name and message
     let (source, message) = if let Some(idx) = rest.find(':') {
         (rest[..idx].trim(), rest[idx + 1..].trim())
     } else {
         ("system", rest)
     };
 
-    // Clean up source - remove [pid]
     let source = source.split('[').next().unwrap_or(source).to_string();
-
-    // Guess level from message content
     let level = guess_level(message);
 
     Some(SystemLogEntry {
@@ -124,36 +132,6 @@ fn parse_macos_log_line(line: &str) -> Option<SystemLogEntry> {
         level,
         source,
         message: message.to_string(),
-    })
-}
-
-fn parse_linux_log_line(line: &str) -> Option<SystemLogEntry> {
-    // ISO format: "2024-01-20T10:23:45+0800 hostname process: message"
-    let parts: Vec<&str> = line.splitn(4, ' ').collect();
-    if parts.len() < 4 {
-        return None;
-    }
-
-    let timestamp = parts[0].to_string();
-    let source = parts[2].trim_end_matches(':').to_string();
-    let message = parts[3].to_string();
-    let level = guess_level(&message);
-
-    Some(SystemLogEntry {
-        timestamp,
-        level,
-        source,
-        message,
-    })
-}
-
-fn parse_windows_log_line(line: &str) -> Option<SystemLogEntry> {
-    // Simple fallback
-    Some(SystemLogEntry {
-        timestamp: chrono::Local::now().to_rfc3339(),
-        level: "INFO".to_string(),
-        source: "windows".to_string(),
-        message: line.to_string(),
     })
 }
 

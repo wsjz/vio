@@ -123,13 +123,13 @@ export function LogViewer() {
   useEffect(() => {
     if (!autoRefresh) return;
 
-    intervalRef.current = setInterval(loadLogs, 5000);
+    intervalRef.current = setInterval(loadLogs, 30000);
 
     const handleVisibility = () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       if (document.visibilityState === 'visible' && autoRefresh) {
         loadLogs();
-        intervalRef.current = setInterval(loadLogs, 5000);
+        intervalRef.current = setInterval(loadLogs, 30000);
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);

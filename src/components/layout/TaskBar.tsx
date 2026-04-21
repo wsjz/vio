@@ -7,9 +7,10 @@ interface TaskBarProps {
   onToggleLauncher: () => void;
   windows: WindowState[];
   onFocusWindow: (id: string) => void;
+  onBlurAll?: () => void;
 }
 
-export function TaskBar({ onToggleLauncher, windows, onFocusWindow }: TaskBarProps) {
+export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll }: TaskBarProps) {
   const createWindow = useWindowStore((s) => s.createWindow);
   const toggleMinimize = useWindowStore((s) => s.toggleMinimize);
   const { theme } = useThemeStore();
@@ -46,6 +47,9 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow }: TaskBarPro
         background: bgSecondary + 'eb',
         backdropFilter: 'blur(16px)',
         borderTop: `1px solid ${accentDim.replace('0.3', '0.1')}`,
+      }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && onBlurAll) onBlurAll();
       }}
     >
       <div

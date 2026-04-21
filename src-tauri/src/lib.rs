@@ -12,7 +12,10 @@ use sysinfo::System;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    .manage(SystemState(Mutex::new(System::new_all())))
+    .manage(SystemState {
+      system: Mutex::new(System::new_all()),
+      disks: Mutex::new(sysinfo::Disks::new_with_refreshed_list()),
+    })
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

@@ -25,14 +25,13 @@ const QUICK_LAUNCH: TerminalType[] = [
 ];
 
 export function Desktop() {
-  const { windows, createWindow, closeWindow, focusWindow, toggleMinimize, toggleMaximize } = useWindowStore();
+  const { windows, createWindow, closeWindow, focusWindow, toggleMinimize, toggleMaximize, blurAllWindows } = useWindowStore();
   const { theme, particleCount, scanlineIntensity, lowPowerMode } = useThemeStore();
+  const accent = theme.colors.accent;
   const [launcherVisible, setLauncherVisible] = useState(false);
   const [startupDone, setStartupDone] = useState(false);
   const windowsRef = useRef(windows);
   windowsRef.current = windows;
-
-  const accent = theme.colors.accent;
 
   // Load last-session layout on startup, fallback to tiled layout
   useEffect(() => {
@@ -203,7 +202,7 @@ export function Desktop() {
           zIndex: 0,
           pointerEvents: 'none',
           backgroundImage:
-            `linear-gradient(${theme.colors.accentDim.replace('0.3', '0.03')} 1px, transparent 1px), linear-gradient(90deg, ${theme.colors.accentDim.replace('0.3', '0.03')} 1px, transparent 1px)`,
+            `linear-gradient(${theme.colors.accentDim.replace('0.3', '0.06')} 1px, transparent 1px), linear-gradient(90deg, ${theme.colors.accentDim.replace('0.3', '0.06')} 1px, transparent 1px)`,
           backgroundSize: '50px 50px',
         }}
       />
@@ -214,13 +213,19 @@ export function Desktop() {
           inset: 0,
           zIndex: 1,
           pointerEvents: 'none',
-          background: `radial-gradient(ellipse at center, transparent 0%, ${theme.colors.bgPrimary}99 70%, ${theme.colors.bgPrimary}e6 100%)`,
+          background: `radial-gradient(ellipse at center, transparent 0%, ${theme.colors.bgPrimary}66 60%, ${theme.colors.bgPrimary}cc 100%)`,
         }}
       />
       <ScanlineOverlay intensity={scanlineIntensity} color={accent} disableAnimation={lowPowerMode} />
 
       {/* Desktop area */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: 10 }}>
+      <div
+        style={{ position: 'fixed', inset: 0, zIndex: 10 }}
+        onMouseDown={(e) => {
+          const isInsideWindow = (e.target as HTMLElement).closest('[data-window-frame]') !== null;
+          if (!isInsideWindow) blurAllWindows();
+        }}
+      >
         {windows.filter((w) => !w.isMinimized).map((win) => (
           <WindowFrame
             key={win.id}
@@ -245,6 +250,7 @@ export function Desktop() {
         onToggleLauncher={handleToggleLauncher}
         windows={windows}
         onFocusWindow={focusWindow}
+        onBlurAll={blurAllWindows}
       />
 
       {/* Startup Screen */}

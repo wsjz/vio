@@ -23,6 +23,7 @@ interface WindowStore {
   createWindow: (type: TerminalType, config?: TerminalConfig, overrides?: { position?: { x: number; y: number }; size?: { width: number; height: number } }) => void;
   closeWindow: (id: string) => void;
   focusWindow: (id: string) => void;
+  blurAllWindows: () => void;
   updateWindowPosition: (id: string, position: { x: number; y: number }) => void;
   updateWindowSize: (id: string, size: { width: number; height: number }) => void;
   toggleMinimize: (id: string) => void;
@@ -73,6 +74,11 @@ export const useWindowStore = create<WindowStore>((set) => ({
         isFocused: w.id === id,
         zIndex: w.id === id ? ++zIndexCounter : w.zIndex,
       })),
+    })),
+
+  blurAllWindows: () =>
+    set((state) => ({
+      windows: state.windows.map((w) => ({ ...w, isFocused: false })),
     })),
 
   updateWindowPosition: (id, position) =>

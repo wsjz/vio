@@ -56,8 +56,8 @@ export function ParticleBackground({ color = '#00f0ff', particleCount = 80 }: Pa
         y: Math.random() * canvas.height,
         vx: (Math.random() - 0.5) * 0.3,
         vy: (Math.random() - 0.5) * 0.3,
-        size: Math.random() * 1.5 + 0.5,
-        opacity: Math.random() * 0.4 + 0.1,
+        size: Math.random() * 2 + 0.8,
+        opacity: Math.random() * 0.5 + 0.3,
         gridX: 0,
         gridY: 0,
       });

@@ -108,6 +108,7 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
   return (
     <div
       ref={frameRef}
+      data-window-frame
       style={{
         position: 'absolute',
         overflow: 'hidden',
@@ -116,17 +117,17 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
         width: win.size.width,
         height: win.size.height,
         zIndex: win.zIndex,
-        background: theme.colors.bgSecondary + 'e0',
-        backdropFilter: 'blur(12px)',
-        border: `1px solid ${win.isFocused ? theme.colors.borderFocus : theme.colors.borderDefault}`,
+        background: theme.colors.bgSecondary + 'b0',
+        backdropFilter: 'blur(16px)',
+        border: `1px solid ${win.isFocused ? accentDim.replace('0.3', '0.5') : theme.colors.borderDefault}`,
         borderRadius: '4px',
         boxShadow: win.isFocused
-          ? `0 10px 40px rgba(0,0,0,0.6), 0 0 15px ${accentGlow}, 0 0 30px ${accentGlow.replace('0.15', '0.08')}`
-          : `0 10px 40px rgba(0,0,0,0.6), 0 0 5px ${accentGlow.replace('0.15', '0.05')}`,
+          ? `0 10px 40px rgba(0,0,0,0.5), 0 0 20px ${accentGlow.replace('0.15', '0.25')}, 0 0 40px ${accentGlow.replace('0.15', '0.12')}, inset 0 0 0 1px ${accentGlow.replace('0.15', '0.1')}`
+          : `0 10px 40px rgba(0,0,0,0.5), 0 0 10px ${accentGlow.replace('0.15', '0.08')}`,
         minWidth: '320px',
         minHeight: '200px',
       }}
-      onMouseDown={onFocus}
+      onMouseDown={() => onFocus()}
     >
       {/* Corner decorations */}
       <div style={{ ...cornerStyle, top: 4, left: 4, borderTop: `1px solid ${accentDim.replace('0.3', '0.3')}`, borderLeft: `1px solid ${accentDim.replace('0.3', '0.3')}` }} />

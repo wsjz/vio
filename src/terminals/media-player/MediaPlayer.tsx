@@ -39,6 +39,15 @@ export function MediaPlayer() {
     };
   }, [src]);
 
+  // Revoke blob URL when src changes or component unmounts
+  useEffect(() => {
+    return () => {
+      if (src && src.startsWith('blob:')) {
+        URL.revokeObjectURL(src);
+      }
+    };
+  }, [src]);
+
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;

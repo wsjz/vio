@@ -32,6 +32,7 @@ export function ShellTerminal() {
   }, [entries]);
 
   const MAX_ENTRIES = 500;
+  const MAX_HISTORY = 200;
 
   const execute = useCallback(async (command: string) => {
     const id = nextId.current++;
@@ -72,7 +73,7 @@ export function ShellTerminal() {
       const cmd = input.trim();
       if (!cmd) return;
 
-      setHistory((prev) => [...prev, cmd]);
+      setHistory((prev) => [...prev, cmd].slice(-MAX_HISTORY));
       setHistoryIndex(-1);
       setInput('');
       execute(cmd);
