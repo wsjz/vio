@@ -2,6 +2,7 @@ import { useRef, useCallback, useEffect } from 'react';
 import type { WindowState } from '../../types';
 import { WindowContent } from './WindowContent';
 import { useThemeStore } from '../../core/theme-engine/themeStore';
+import { useWindowStore } from '../../core/window-manager/windowStore';
 
 interface WindowFrameProps {
   window: WindowState;
@@ -17,13 +18,33 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
   const resizingRef = useRef<string | null>(null);
   const startPosRef = useRef({ x: 0, y: 0, left: 0, top: 0, width: 0, height: 0 });
   const { theme } = useThemeStore();
+  const updateWindowPosition = useWindowStore((s) => s.updateWindowPosition);
+  const updateWindowSize = useWindowStore((s) => s.updateWindowSize);
+  const windows = useWindowStore((s) => s.windows);
+  const anyFocused = windows.some((w) => w.isFocused);
+  const isActive = win.isFocused || !anyFocused;
 
   const accent = theme.colors.accent;
   const accentDim = theme.colors.accentDim;
   const accentGlow = theme.colors.accentGlow;
 
+  // Keep a ref to the latest onFocus so the effect doesn't need to re-bind
+  const onFocusRef = useRef(onFocus);
+  onFocusRef.current = onFocus;
+
+  const focusContentInput = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (!frameRef.current) return;
+      const input = frameRef.current.querySelector('input');
+      if (input) {
+        (input as HTMLInputElement).focus();
+      }
+    });
+  }, []);
+
   const handleTitleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     draggingRef.current = true;
     startPosRef.current = {
       x: e.clientX,
@@ -33,8 +54,8 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
       width: win.size.width,
       height: win.size.height,
     };
-    onFocus();
-  }, [win.position, win.size, onFocus]);
+    focusContentInput();
+  }, [win.position, win.size, focusContentInput]);
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent, dir: string) => {
     e.preventDefault();
@@ -48,8 +69,7 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
       width: win.size.width,
       height: win.size.height,
     };
-    onFocus();
-  }, [win.position, win.size, onFocus]);
+  }, [win.position, win.size]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -86,6 +106,20 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
     };
 
     const handleMouseUp = () => {
+      if (draggingRef.current && frameRef.current) {
+        const left = parseInt(frameRef.current.style.left || '0', 10);
+        const top = parseInt(frameRef.current.style.top || '0', 10);
+        updateWindowPosition(win.id, { x: left, y: top });
+      }
+      if (resizingRef.current && frameRef.current) {
+        const width = parseInt(frameRef.current.style.width || '0', 10);
+        const height = parseInt(frameRef.current.style.height || '0', 10);
+        updateWindowSize(win.id, { width, height });
+      }
+      // Only trigger focus after drag/resize finishes to avoid re-render mid-drag
+      if (draggingRef.current || resizingRef.current) {
+        onFocusRef.current();
+      }
       draggingRef.current = false;
       resizingRef.current = null;
     };
@@ -96,6 +130,7 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const cornerStyle: React.CSSProperties = {
@@ -109,6 +144,7 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
     <div
       ref={frameRef}
       data-window-frame
+      data-window-id={win.id}
       style={{
         position: 'absolute',
         overflow: 'hidden',
@@ -119,15 +155,15 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
         zIndex: win.zIndex,
         background: theme.colors.bgSecondary + 'b0',
         backdropFilter: 'blur(16px)',
-        border: `1px solid ${win.isFocused ? accentDim.replace('0.3', '0.5') : theme.colors.borderDefault}`,
+        border: `1px solid ${isActive ? accentDim.replace('0.3', '0.5') : theme.colors.borderDefault}`,
         borderRadius: '4px',
-        boxShadow: win.isFocused
+        boxShadow: isActive
           ? `0 10px 40px rgba(0,0,0,0.5), 0 0 20px ${accentGlow.replace('0.15', '0.25')}, 0 0 40px ${accentGlow.replace('0.15', '0.12')}, inset 0 0 0 1px ${accentGlow.replace('0.15', '0.1')}`
           : `0 10px 40px rgba(0,0,0,0.5), 0 0 10px ${accentGlow.replace('0.15', '0.08')}`,
         minWidth: '320px',
         minHeight: '200px',
       }}
-      onMouseDown={() => onFocus()}
+      onMouseDown={() => { onFocus(); focusContentInput(); }}
     >
       {/* Corner decorations */}
       <div style={{ ...cornerStyle, top: 4, left: 4, borderTop: `1px solid ${accentDim.replace('0.3', '0.3')}`, borderLeft: `1px solid ${accentDim.replace('0.3', '0.3')}` }} />
@@ -143,8 +179,8 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: win.isFocused ? `${accentGlow.replace('0.15', '0.06')}` : 'transparent',
-          borderBottom: `1px solid ${win.isFocused ? accentDim.replace('0.3', '0.15') : 'rgba(255,255,255,0.03)'}`,
+          background: isActive ? `${accentGlow.replace('0.15', '0.06')}` : 'transparent',
+          borderBottom: `1px solid ${isActive ? accentDim.replace('0.3', '0.15') : 'rgba(255,255,255,0.03)'}`,
           cursor: 'move',
           transition: 'background 0.2s, border-color 0.2s',
         }}
@@ -157,9 +193,9 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
               width: 3,
               height: 12,
               borderRadius: 1,
-              background: win.isFocused ? accent : theme.colors.textTertiary,
-              opacity: win.isFocused ? 1 : 0.3,
-              boxShadow: win.isFocused ? `0 0 6px ${accentGlow}` : 'none',
+              background: isActive ? accent : theme.colors.textTertiary,
+              opacity: isActive ? 1 : 0.3,
+              boxShadow: isActive ? `0 0 6px ${accentGlow}` : 'none',
             }}
           />
           <span
@@ -168,9 +204,9 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
               fontWeight: 500,
               textTransform: 'uppercase',
               letterSpacing: 2,
-              color: win.isFocused ? accent : theme.colors.textTertiary,
+              color: isActive ? accent : theme.colors.textTertiary,
               fontFamily: theme.font.mono,
-              opacity: win.isFocused ? 1 : 0.6,
+              opacity: isActive ? 1 : 0.6,
             }}
           >
             {win.title}

@@ -8,7 +8,7 @@ export interface Size2D {
   height: number;
 }
 
-export type TerminalType =
+export type BuiltinTerminalType =
   | 'system-monitor'
   | 'shell'
   | 'log-viewer'
@@ -19,7 +19,10 @@ export type TerminalType =
   | 'file-manager'
   | 'code-editor'
   | 'widget-clock'
-  | 'settings';
+  | 'settings'
+  | 'opencli';
+
+export type TerminalType = BuiltinTerminalType | string;
 
 export interface TerminalConfig {
   refreshRate?: number;

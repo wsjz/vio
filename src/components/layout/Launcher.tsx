@@ -1,5 +1,7 @@
 import type { TerminalType } from '../../types';
 import { useThemeStore } from '../../core/theme-engine/themeStore';
+import { usePluginStore } from '../../core/plugin-system';
+import { useMemo } from 'react';
 
 interface LauncherProps {
   visible: boolean;
@@ -7,7 +9,7 @@ interface LauncherProps {
   onClose: () => void;
 }
 
-const TERMINAL_ITEMS: { type: TerminalType; name: string; icon: string }[] = [
+const BUILTIN_ITEMS: { type: TerminalType; name: string; icon: string }[] = [
   { type: 'system-monitor', name: 'System Monitor', icon: '◈' },
   { type: 'shell', name: 'Shell', icon: '▸' },
   { type: 'log-viewer', name: 'Log Viewer', icon: '≡' },
@@ -16,10 +18,24 @@ const TERMINAL_ITEMS: { type: TerminalType; name: string; icon: string }[] = [
   { type: 'code-editor', name: 'Code Editor', icon: '◊' },
   { type: 'map', name: 'Map', icon: '◎' },
   { type: 'media-player', name: 'Media', icon: '▶' },
+  { type: 'opencli', name: 'OpenCLI', icon: '⚡' },
 ];
 
 export function Launcher({ visible, onSelect, onClose }: LauncherProps) {
   const { theme } = useThemeStore();
+  const { getEnabledPlugins } = usePluginStore();
+
+  // Combine builtin terminals with plugin terminals
+  const allItems = useMemo(() => {
+    const plugins = getEnabledPlugins();
+    const pluginItems = plugins.map((p) => ({
+      type: p.manifest.id as TerminalType,
+      name: p.manifest.name,
+      icon: p.manifest.icon,
+    }));
+    return [...BUILTIN_ITEMS, ...pluginItems];
+  }, [getEnabledPlugins]);
+
   if (!visible) return null;
 
   const accent = theme.colors.accent;
@@ -67,7 +83,7 @@ export function Launcher({ visible, onSelect, onClose }: LauncherProps) {
         }}
       />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, padding: 16 }}>
-        {TERMINAL_ITEMS.map((item, idx) => (
+        {allItems.map((item, idx) => (
           <div
             key={item.type}
             onClick={() => onSelect(item.type)}
@@ -134,7 +150,7 @@ export function Launcher({ visible, onSelect, onClose }: LauncherProps) {
           textAlign: 'center',
         }}
       >
-        Press 1~8 to select · Escape to close · Ctrl+T to toggle
+        Press 1~{allItems.length} to select · Escape to close · Ctrl+T to toggle
       </div>
     </div>
   );

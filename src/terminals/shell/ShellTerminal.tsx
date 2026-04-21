@@ -9,7 +9,11 @@ interface CommandEntry {
   isLoading: boolean;
 }
 
-export function ShellTerminal() {
+interface ShellTerminalProps {
+  isFocused?: boolean;
+}
+
+export function ShellTerminal({ isFocused }: ShellTerminalProps) {
   const [entries, setEntries] = useState<CommandEntry[]>([
     { id: 0, prompt: 'user@vio:~$', result: null, isLoading: false },
   ]);
@@ -20,6 +24,13 @@ export function ShellTerminal() {
   const inputRef = useRef<HTMLInputElement>(null);
   const nextId = useRef(1);
   const { theme } = useThemeStore();
+
+  // Focus input when terminal window gains focus
+  useEffect(() => {
+    if (isFocused && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isFocused]);
 
   const accent = theme.colors.accent;
   const textPrimary = theme.colors.textPrimary;
@@ -118,7 +129,7 @@ export function ShellTerminal() {
       )}
 
       <div ref={scrollRef} style={{ flex: 1, overflow: 'auto' }}>
-        {entries.map((entry) => (
+        {entries.map((entry, index) => (
           <div key={entry.id} style={{ marginBottom: 4 }}>
             {entry.isLoading ? (
               <div>
@@ -140,7 +151,7 @@ export function ShellTerminal() {
                   <div style={{ color: '#ff3333', fontSize: 10 }}>exit code: {entry.result.exit_code}</div>
                 )}
               </>
-            ) : (
+            ) : index === entries.length - 1 ? (
               <div>
                 <span style={{ color: accent }}>{entry.prompt}</span>{' '}
                 <form onSubmit={handleSubmit} style={{ display: 'inline' }}>
@@ -163,6 +174,10 @@ export function ShellTerminal() {
                     spellCheck={false}
                   />
                 </form>
+              </div>
+            ) : (
+              <div>
+                <span style={{ color: accent }}>{entry.prompt}</span>
               </div>
             )}
           </div>

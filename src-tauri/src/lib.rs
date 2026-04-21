@@ -6,6 +6,7 @@ use commands::fs::{list_directory, read_file, get_home_directory, write_file};
 use commands::network::{get_network_info, scan_network};
 use commands::log::get_system_logs;
 use commands::layout::{save_layout, load_layout, list_layouts, delete_layout, export_layout, import_layout, get_layouts_directory};
+use commands::opencli::{check_opencli, install_opencli, pick_opencli_path};
 use std::sync::Mutex;
 use sysinfo::System;
 
@@ -16,6 +17,7 @@ pub fn run() {
       system: Mutex::new(System::new_all()),
       disks: Mutex::new(sysinfo::Disks::new_with_refreshed_list()),
     })
+    .plugin(tauri_plugin_dialog::init())
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
@@ -46,6 +48,9 @@ pub fn run() {
       export_layout,
       import_layout,
       get_layouts_directory,
+      check_opencli,
+      install_opencli,
+      pick_opencli_path,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

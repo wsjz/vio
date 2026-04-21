@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import type { WindowState, TerminalType, TerminalConfig, Size2D } from '../../types';
+import { usePluginStore } from '../plugin-system';
 
 let zIndexCounter = 100;
 let windowIdCounter = 0;
 
-const TERMINAL_CONFIGS: Record<TerminalType, { title: string; defaultSize: Size2D }> = {
+const TERMINAL_CONFIGS: Record<string, { title: string; defaultSize: Size2D }> = {
   'system-monitor': { title: 'System Monitor', defaultSize: { width: 520, height: 440 } },
   'shell': { title: 'Shell', defaultSize: { width: 520, height: 340 } },
   'log-viewer': { title: 'Log Viewer', defaultSize: { width: 480, height: 320 } },
@@ -16,6 +17,30 @@ const TERMINAL_CONFIGS: Record<TerminalType, { title: string; defaultSize: Size2
   'viewer-3d': { title: '3D Viewer', defaultSize: { width: 480, height: 380 } },
   'widget-clock': { title: 'Clock', defaultSize: { width: 200, height: 120 } },
   'settings': { title: 'Settings', defaultSize: { width: 480, height: 420 } },
+  'opencli': { title: 'OpenCLI', defaultSize: { width: 520, height: 340 } },
+};
+
+// Get terminal config, supporting both built-in and plugin terminals
+const getTerminalConfig = (type: TerminalType): { title: string; defaultSize: Size2D } => {
+  // Check built-in first
+  if (TERMINAL_CONFIGS[type]) {
+    return TERMINAL_CONFIGS[type];
+  }
+
+  // Check plugin registry
+  const plugin = usePluginStore.getState().getPlugin(type);
+  if (plugin) {
+    return {
+      title: plugin.manifest.name,
+      defaultSize: plugin.manifest.defaultSize,
+    };
+  }
+
+  // Fallback for unknown types
+  return {
+    title: type,
+    defaultSize: { width: 520, height: 340 },
+  };
 };
 
 interface WindowStore {
@@ -36,7 +61,7 @@ export const useWindowStore = create<WindowStore>((set) => ({
   windows: [],
 
   createWindow: (type, config = {}, overrides = {}) => {
-    const cfg = TERMINAL_CONFIGS[type];
+    const cfg = getTerminalConfig(type);
     const id = `win-${++windowIdCounter}`;
     const offset = (windowIdCounter % 5) * 30;
 
