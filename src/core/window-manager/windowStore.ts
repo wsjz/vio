@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { WindowState, TerminalType, TerminalConfig, Size2D } from '../../types';
 import { usePluginStore } from '../plugin-system';
+import { computeArrangedLayout } from './tileWindows';
 
 let zIndexCounter = 100;
 let windowIdCounter = 0;
@@ -53,6 +54,7 @@ interface WindowStore {
   updateWindowSize: (id: string, size: { width: number; height: number }) => void;
   toggleMinimize: (id: string) => void;
   toggleMaximize: (id: string) => void;
+  arrangeWindows: () => void;
   clearWindows: () => void;
   setWindows: (windows: WindowState[]) => void;
 }
@@ -149,6 +151,28 @@ export const useWindowStore = create<WindowStore>((set) => ({
         };
       }),
     })),
+
+  arrangeWindows: () =>
+    set((state) => {
+      const layouts = computeArrangedLayout(
+        state.windows,
+        window.innerWidth,
+        window.innerHeight - 36
+      );
+      const layoutMap = new Map(layouts.map((l) => [l.id, l]));
+      return {
+        windows: state.windows.map((w) => {
+          const layout = layoutMap.get(w.id);
+          if (!layout || w.isMaximized) return w;
+          return {
+            ...w,
+            position: layout.position,
+            size: layout.size,
+            isMinimized: false,
+          };
+        }),
+      };
+    }),
 
   clearWindows: () =>
     set(() => ({

@@ -60,3 +60,46 @@ export function computeTiledLayout(
 
   return layouts;
 }
+
+export function computeArrangedLayout(
+  windows: { id: string; type: TerminalType }[],
+  screenW: number,
+  screenH: number
+): { id: string; position: { x: number; y: number }; size: { width: number; height: number } }[] {
+  const gap = 16;
+  const MIN_WIDTH = 520;
+  const MIN_HEIGHT = 400;
+  const MAX_COLS = 4;
+  const visible = windows.filter((w) => w.type !== 'widget-clock');
+  const count = visible.length;
+  if (count === 0) return [];
+
+  // Determine columns: never exceed MAX_COLS, always respect MIN_WIDTH
+  let cols = Math.min(count, MAX_COLS, Math.max(1, Math.floor((screenW - gap) / (MIN_WIDTH + gap))));
+  let rows = Math.ceil(count / cols);
+
+  // If rows would push height below MIN_HEIGHT, try fewer columns first
+  while (rows > 1 && Math.floor((screenH - gap * (rows + 1)) / rows) < MIN_HEIGHT && cols > 1) {
+    cols--;
+    rows = Math.ceil(count / cols);
+  }
+
+  const cellW = Math.max(MIN_WIDTH, Math.floor((screenW - gap * (cols + 1)) / cols));
+  const cellH = Math.max(MIN_HEIGHT, Math.floor((screenH - gap * (rows + 1)) / rows));
+
+  return visible.map((w, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    return {
+      id: w.id,
+      position: {
+        x: gap + col * (cellW + gap),
+        y: gap + row * (cellH + gap),
+      },
+      size: {
+        width: cellW,
+        height: cellH,
+      },
+    };
+  });
+}

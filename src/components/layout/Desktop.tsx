@@ -25,7 +25,7 @@ const QUICK_LAUNCH: TerminalType[] = [
 ];
 
 export function Desktop() {
-  const { windows, createWindow, closeWindow, focusWindow, toggleMinimize, toggleMaximize, blurAllWindows } = useWindowStore();
+  const { windows, createWindow, closeWindow, focusWindow, toggleMinimize, toggleMaximize, blurAllWindows, arrangeWindows } = useWindowStore();
   const { theme, particleCount, scanlineIntensity, lowPowerMode } = useThemeStore();
   const accent = theme.colors.accent;
   const [launcherVisible, setLauncherVisible] = useState(false);
@@ -177,6 +177,13 @@ export function Desktop() {
         return;
       }
 
+      // Arrange all windows
+      if (isMod && e.shiftKey && e.key === 'A') {
+        e.preventDefault();
+        arrangeWindows();
+        return;
+      }
+
       // Quick launch terminals via Ctrl/Cmd + 1~9
       if (isMod && !e.shiftKey) {
         const num = parseInt(e.key, 10);
@@ -190,7 +197,7 @@ export function Desktop() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [launcherVisible, closeWindow, toggleMinimize, toggleMaximize, focusWindow, createWindow, handleCreateWindow]);
+  }, [launcherVisible, closeWindow, toggleMinimize, toggleMaximize, focusWindow, createWindow, handleCreateWindow, arrangeWindows]);
 
   return (
     <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: theme.colors.bgPrimary }}>

@@ -13,6 +13,7 @@ interface TaskBarProps {
 export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll }: TaskBarProps) {
   const createWindow = useWindowStore((s) => s.createWindow);
   const toggleMinimize = useWindowStore((s) => s.toggleMinimize);
+  const arrangeWindows = useWindowStore((s) => s.arrangeWindows);
   const { theme } = useThemeStore();
   const [time, setTime] = useState(new Date().toLocaleTimeString('en-US', { hour12: false }));
 
@@ -80,6 +81,23 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll }:
         }}
       >
         ⊕ New Terminal
+      </button>
+      <button
+        onClick={arrangeWindows}
+        title="整理窗口"
+        style={{
+          padding: '4px 12px',
+          fontSize: 11,
+          color: accent,
+          border: `1px solid ${accentDim.replace('0.3', '0.3')}`,
+          borderRadius: 3,
+          background: accentGlow,
+          cursor: 'default',
+          fontFamily: theme.font.ui,
+          letterSpacing: 1,
+        }}
+      >
+        ⧉ 整理窗口
       </button>
       {windows.map((win) => (
         <button
