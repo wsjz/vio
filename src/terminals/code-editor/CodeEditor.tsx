@@ -194,7 +194,7 @@ export function CodeEditor() {
           gap: 8,
           padding: '6px 10px',
           background: 'rgba(0,0,0,0.2)',
-          borderBottom: `1px solid ${accentGlow.replace('0.15', '0.06')}`,
+          borderBottom: `1px solid ${theme.colors.accentGlow06}`,
           fontSize: 11,
         }}
       >
@@ -203,7 +203,7 @@ export function CodeEditor() {
           style={{
             padding: '2px 8px',
             borderRadius: 3,
-            border: `1px solid ${accentGlow.replace('0.15', '0.15')}`,
+            border: `1px solid ${accentGlow}`,
             background: 'transparent',
             color: textSecondary,
             cursor: 'default',
@@ -218,7 +218,7 @@ export function CodeEditor() {
           style={{
             padding: '2px 8px',
             borderRadius: 3,
-            border: `1px solid ${accentGlow.replace('0.15', '0.15')}`,
+            border: `1px solid ${accentGlow}`,
             background: 'transparent',
             color: textSecondary,
             cursor: 'default',
@@ -233,7 +233,7 @@ export function CodeEditor() {
           style={{
             padding: '2px 8px',
             borderRadius: 3,
-            border: `1px solid ${isDirty ? accentGlow.replace('0.15', '0.3') : accentGlow.replace('0.15', '0.15')}`,
+            border: `1px solid ${isDirty ? theme.colors.accentGlow30 : accentGlow}`,
             background: isDirty ? accentGlow : 'transparent',
             color: isDirty ? accent : textSecondary,
             cursor: 'default',
@@ -244,7 +244,7 @@ export function CodeEditor() {
           {isDirty ? 'Save*' : 'Save'}
         </button>
 
-        <div style={{ width: 1, height: 16, background: accentGlow.replace('0.15', '0.1') }} />
+        <div style={{ width: 1, height: 16, background: theme.colors.accentGlow10 }} />
 
         <span style={{ color: textTertiary, fontSize: 10, fontFamily: theme.font.mono }}>
           {fileName}
@@ -258,7 +258,7 @@ export function CodeEditor() {
             onChange={(e) => setLanguage(e.target.value)}
             style={{
               background: 'rgba(0,0,0,0.3)',
-              border: `1px solid ${accentGlow.replace('0.15', '0.1')}`,
+              border: `1px solid ${theme.colors.accentGlow10}`,
               borderRadius: 3,
               color: textSecondary,
               fontSize: 10,
@@ -333,7 +333,7 @@ export function CodeEditor() {
           caret-color: ${accent} !important;
         }
         .vio-code-textarea::selection {
-          background: ${accentGlow.replace('0.15', '0.25')} !important;
+          background: ${theme.colors.accentGlow25} !important;
         }
         code[class*="language-"],
         pre[class*="language-"] {

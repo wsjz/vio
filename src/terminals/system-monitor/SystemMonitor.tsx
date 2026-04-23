@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, memo } from 'react';
 import { getSystemMetrics, getProcesses, type SystemMetrics, type ProcessInfo } from '../../api/tauri';
 import { useThemeStore } from '../../core/theme-engine/themeStore';
+import { METRICS_POLL_INTERVAL } from '../../core/constants';
 
 const IS_TAURI = typeof window !== 'undefined' && window.__TAURI_INTERNALS__ !== undefined;
 
@@ -85,7 +86,7 @@ const Gauge = memo(function Gauge({ label, value, color, accentGlow, fontDisplay
   );
 });
 
-const NetworkChart = memo(function NetworkChart({ data, accent, accentGlow }: { data: number[]; accent: string; accentGlow: string }) {
+const NetworkChart = memo(function NetworkChart({ data, accent, accentGlow, accentGlow06 }: { data: number[]; accent: string; accentGlow: string; accentGlow06: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -130,7 +131,7 @@ const NetworkChart = memo(function NetworkChart({ data, accent, accentGlow }: { 
   }, [data, accent, accentGlow]);
 
   return (
-    <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 3, border: `1px solid ${accentGlow.replace('0.15', '0.06')}`, padding: 10, marginBottom: 12 }}>
+    <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 3, border: `1px solid ${accentGlow06}`, padding: 10, marginBottom: 12 }}>
       <div style={{ fontSize: 10, color: '#606060', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8, fontFamily: 'Rajdhani, sans-serif' }}>
         CPU History
       </div>
@@ -174,7 +175,7 @@ export function SystemMonitor() {
 
     function start() {
       fetchData();
-      interval = setInterval(fetchData, 2000);
+      interval = setInterval(fetchData, METRICS_POLL_INTERVAL);
     }
     function stop() {
       clearInterval(interval);
@@ -222,7 +223,7 @@ export function SystemMonitor() {
         <Gauge label="Disk" value={disk} color="#ffb000" accentGlow="rgba(255,176,0,0.15)" fontDisplay={theme.font.display} fontUi={theme.font.ui} />
       </div>
 
-      <NetworkChart data={historyRef.current} accent={accent} accentGlow={accentGlow} />
+      <NetworkChart data={historyRef.current} accent={accent} accentGlow={accentGlow} accentGlow06={theme.colors.accentGlow06!} />
 
       {metrics && (
         <div style={{ display: 'flex', gap: 16, marginBottom: 12, fontSize: 10, color: textTertiary, fontFamily: theme.font.mono }}>
@@ -244,7 +245,7 @@ export function SystemMonitor() {
                   textTransform: 'uppercase',
                   letterSpacing: 1,
                   color: textTertiary,
-                  borderBottom: `1px solid ${accentGlow.replace('0.15', '0.1')}`,
+                  borderBottom: `1px solid ${theme.colors.accentGlow10}`,
                   fontSize: 9,
                   fontFamily: theme.font.ui,
                 }}
@@ -259,7 +260,7 @@ export function SystemMonitor() {
             <tr
               key={p.pid}
               style={{ transition: 'background 0.15s' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = accentGlow.replace('0.15', '0.03'))}
+              onMouseEnter={(e) => (e.currentTarget.style.background = theme.colors.accentGlow03!)}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
               <td style={{ padding: '5px 8px', color: '#888' }}>{p.pid}</td>

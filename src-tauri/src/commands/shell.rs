@@ -33,9 +33,27 @@ pub async fn execute_shell(command: String) -> Result<ShellResult, String> {
     let shell = if cfg!(target_os = "windows") { "cmd" } else { "sh" };
     let arg = if cfg!(target_os = "windows") { "/C" } else { "-c" };
 
+    let command = command.trim();
+    if command.is_empty() {
+        return Err("Empty command".to_string());
+    }
+
+    // Basic safety check: block obviously dangerous patterns
+    let lower = command.to_lowercase();
+    let dangerous_patterns = [
+        "rm -rf /", "rm -rf /*", "mkfs.", "dd if=/dev/zero of=/dev",
+        ":(){:|:&};:", "> /dev/sda", "> /dev/hda",
+        "curl .*| sh", "curl .*| bash", "wget .*| sh", "wget .*| bash",
+    ];
+    for pattern in &dangerous_patterns {
+        if lower.contains(pattern) {
+            return Err(format!("Dangerous command blocked: {}", pattern));
+        }
+    }
+
     let output = Command::new(shell)
         .arg(arg)
-        .arg(&command)
+        .arg(command)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()

@@ -21,6 +21,9 @@ interface ContextMenuProps {
       textPrimary: string;
       textSecondary: string;
       borderDefault: string;
+      accentDim15: string;
+      accentGlow10: string;
+      accentGlow12: string;
     };
     font: { mono: string };
   };
@@ -71,7 +74,7 @@ export function ContextMenu({ visible, x, y, items, onClose, theme }: ContextMen
         border: `1px solid ${theme.colors.borderDefault}`,
         borderRadius: 6,
         padding: '4px 0',
-        boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 16px ${theme.colors.accentGlow.replace('0.15', '0.1')}`,
+        boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 16px ${theme.colors.accentGlow10}`,
         fontFamily: theme.font.mono,
         fontSize: 12,
         overflow: 'hidden',
@@ -83,7 +86,7 @@ export function ContextMenu({ visible, x, y, items, onClose, theme }: ContextMen
             key={i}
             style={{
               height: 1,
-              background: theme.colors.accentDim.replace('0.3', '0.15'),
+              background: theme.colors.accentDim15,
               margin: '4px 8px',
             }}
           />
@@ -105,7 +108,7 @@ export function ContextMenu({ visible, x, y, items, onClose, theme }: ContextMen
               transition: 'background 0.15s',
             }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = theme.colors.accentGlow.replace('0.15', '0.12');
+              (e.currentTarget as HTMLButtonElement).style.background = theme.colors.accentGlow12;
             }}
             onMouseLeave={(e) => {
               (e.currentTarget as HTMLButtonElement).style.background = 'transparent';

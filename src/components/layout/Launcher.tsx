@@ -57,7 +57,7 @@ export function Launcher({ visible, onSelect, onClose }: LauncherProps) {
         maxHeight: 400,
         background: bgSecondary + 'f2',
         backdropFilter: 'blur(20px)',
-        border: `1px solid ${accentDim.replace('0.3', '0.2')}`,
+        border: `1px solid ${theme.colors.accentDim20}`,
         borderRadius: 6,
         boxShadow: `0 20px 60px rgba(0,0,0,0.8), 0 0 20px ${accentGlow}`,
         zIndex: 2000,
@@ -70,7 +70,7 @@ export function Launcher({ visible, onSelect, onClose }: LauncherProps) {
           padding: '14px 16px',
           background: 'transparent',
           border: 'none',
-          borderBottom: `1px solid ${accentDim.replace('0.3', '0.1')}`,
+          borderBottom: `1px solid ${theme.colors.accentDim10}`,
           color: textPrimary,
           fontSize: 14,
           outline: 'none',
@@ -90,18 +90,18 @@ export function Launcher({ visible, onSelect, onClose }: LauncherProps) {
             style={{
               padding: '16px 12px',
               textAlign: 'center',
-              border: `1px solid ${accentDim.replace('0.3', '0.08')}`,
+              border: `1px solid ${theme.colors.accentDim08}`,
               borderRadius: 4,
               cursor: 'default',
               transition: 'all 0.15s',
               position: 'relative',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = accentDim.replace('0.3', '0.3');
+              e.currentTarget.style.borderColor = accentDim;
               e.currentTarget.style.background = accentGlow;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = accentDim.replace('0.3', '0.08');
+              e.currentTarget.style.borderColor = theme.colors.accentDim08;
               e.currentTarget.style.background = 'transparent';
             }}
           >
@@ -123,7 +123,7 @@ export function Launcher({ visible, onSelect, onClose }: LauncherProps) {
                 width: 32,
                 height: 32,
                 margin: '0 auto 8px',
-                border: `1px solid ${accentDim.replace('0.3', '0.2')}`,
+                border: `1px solid ${theme.colors.accentDim20}`,
                 borderRadius: 4,
                 display: 'flex',
                 alignItems: 'center',
@@ -143,7 +143,7 @@ export function Launcher({ visible, onSelect, onClose }: LauncherProps) {
       <div
         style={{
           padding: '6px 12px',
-          borderTop: `1px solid ${accentDim.replace('0.3', '0.08')}`,
+          borderTop: `1px solid ${theme.colors.accentDim08}`,
           fontSize: 9,
           color: textTertiary,
           fontFamily: theme.font.mono,

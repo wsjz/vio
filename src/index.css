@@ -113,9 +113,18 @@ img {
   user-drag: none;
 }
 
-/* Disable outline */
+/* Focus visible: show outline only for keyboard navigation */
 *:focus {
   outline: none;
+}
+*:focus-visible {
+  outline: 2px solid var(--accent-cyan-dim);
+  outline-offset: 2px;
+}
+button:focus-visible,
+input:focus-visible {
+  outline: 1px solid var(--accent-cyan);
+  outline-offset: 1px;
 }
 
 /* Disable touch callout */

@@ -48,7 +48,7 @@ export function ClockWidget() {
               style={{
                 width: 2,
                 height: 3,
-                background: active ? accent : accentDim.replace('0.3', '0.1'),
+                background: active ? accent : theme.colors.accentDim10,
                 borderRadius: 1,
               }}
             />

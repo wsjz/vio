@@ -78,6 +78,40 @@ export interface ThemeConfig {
     textTertiary: string;
     borderDefault: string;
     borderFocus: string;
+    /** Precomputed variant: accentDim with alpha 0.5 */
+    accentDim50: string;
+    /** Precomputed variant: accentDim with alpha 0.15 */
+    accentDim15: string;
+    /** Precomputed variant: accentDim with alpha 0.1 */
+    accentDim10: string;
+    /** Precomputed variant: accentDim with alpha 0.2 */
+    accentDim20: string;
+    /** Precomputed variant: accentDim with alpha 0.08 */
+    accentDim08: string;
+    /** Precomputed variant: accentDim with alpha 0.06 */
+    accentDim06: string;
+    /** Precomputed variant: accentGlow with alpha 0.25 */
+    accentGlow25: string;
+    /** Precomputed variant: accentGlow with alpha 0.12 */
+    accentGlow12: string;
+    /** Precomputed variant: accentGlow with alpha 0.1 */
+    accentGlow10: string;
+    /** Precomputed variant: accentGlow with alpha 0.08 */
+    accentGlow08: string;
+    /** Precomputed variant: accentGlow with alpha 0.06 */
+    accentGlow06: string;
+    /** Precomputed variant: accentGlow with alpha 0.03 */
+    accentGlow03: string;
+    /** Precomputed variant: accentGlow with alpha 0.3 */
+    accentGlow30: string;
+    /** Precomputed variant: accentGlow with alpha 0.04 */
+    accentGlow04: string;
+    /** Precomputed variant: accentGlow with alpha 0.15 */
+    accentGlow15: string;
+    /** Precomputed variant: accentGlow with alpha 0.4 */
+    accentGlow40: string;
+    /** Precomputed variant: accentGlow with alpha 0.2 */
+    accentGlow20: string;
   };
   font: {
     display: string;

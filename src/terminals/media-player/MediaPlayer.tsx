@@ -108,7 +108,7 @@ export function MediaPlayer() {
           flex: 1,
           background: 'rgba(0,0,0,0.4)',
           borderRadius: 4,
-          border: `1px solid ${accentGlow.replace('0.15', '0.08')}`,
+          border: `1px solid ${theme.colors.accentGlow08}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -134,7 +134,7 @@ export function MediaPlayer() {
                 marginTop: 12,
                 padding: '6px 16px',
                 background: accentGlow,
-                border: `1px solid ${accentGlow.replace('0.15', '0.2')}`,
+                border: `1px solid ${theme.colors.accentGlow20}`,
                 borderRadius: 3,
                 color: accent,
                 cursor: 'default',
@@ -159,7 +159,7 @@ export function MediaPlayer() {
 
       {/* Controls */}
       {src && (
-        <div style={{ padding: '8px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: 4, border: `1px solid ${accentGlow.replace('0.15', '0.06')}` }}>
+        <div style={{ padding: '8px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: 4, border: `1px solid ${theme.colors.accentGlow06}` }}>
           {/* Progress bar */}
           <div
             ref={progressRef}
@@ -193,7 +193,7 @@ export function MediaPlayer() {
                 height: 28,
                 borderRadius: '50%',
                 background: accentGlow,
-                border: `1px solid ${accentGlow.replace('0.15', '0.3')}`,
+                border: `1px solid ${theme.colors.accentGlow30}`,
                 color: accent,
                 cursor: 'default',
                 fontSize: 12,
@@ -232,7 +232,7 @@ export function MediaPlayer() {
               style={{
                 padding: '2px 10px',
                 background: 'transparent',
-                border: `1px solid ${accentGlow.replace('0.15', '0.15')}`,
+                border: `1px solid ${accentGlow}`,
                 borderRadius: 3,
                 color: textSecondary,
                 cursor: 'default',

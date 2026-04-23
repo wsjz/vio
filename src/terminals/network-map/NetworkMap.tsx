@@ -156,7 +156,7 @@ export function NetworkMap() {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', fontSize: 12 }}>
       {error && <div style={{ color: '#ff3333', fontSize: 10, marginBottom: 8 }}>{error}</div>}
 
-      <div style={{ display: 'flex', gap: 16, marginBottom: 12, padding: '8px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: 3, border: `1px solid ${accentGlow.replace('0.15', '0.06')}` }}>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 12, padding: '8px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: 3, border: `1px solid ${theme.colors.accentGlow06}` }}>
         <div>
           <span style={{ color: textTertiary, fontSize: 9, textTransform: 'uppercase', letterSpacing: 1 }}>Hostname</span>
           <div style={{ color: accent, fontFamily: theme.font.ui }}>{netInfo?.hostname ?? '...'}</div>
@@ -177,8 +177,8 @@ export function NetworkMap() {
             disabled={scanning}
             style={{
               padding: '4px 16px',
-              background: scanning ? accentGlow.replace('0.15', '0.04') : accentGlow,
-              border: `1px solid ${accentGlow.replace('0.15', '0.3')}`,
+              background: scanning ? theme.colors.accentGlow04 : accentGlow,
+              border: `1px solid ${theme.colors.accentGlow30}`,
               borderRadius: 3,
               color: accent,
               cursor: 'default',
@@ -192,7 +192,7 @@ export function NetworkMap() {
         </div>
       </div>
 
-      <div style={{ flex: 1, position: 'relative', background: 'rgba(0,0,0,0.15)', borderRadius: 3, border: `1px solid ${accentGlow.replace('0.15', '0.06')}` }}>
+      <div style={{ flex: 1, position: 'relative', background: 'rgba(0,0,0,0.15)', borderRadius: 3, border: `1px solid ${theme.colors.accentGlow06}` }}>
         <canvas ref={canvasRef} width={800} height={500} style={{ width: '100%', height: '100%' }} />
 
         <div style={{ position: 'absolute', bottom: 8, left: 8, display: 'flex', gap: 12, fontSize: 9, color: textTertiary }}>

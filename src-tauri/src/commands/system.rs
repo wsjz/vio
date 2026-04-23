@@ -58,8 +58,8 @@ pub fn get_system_info() -> SystemInfo {
 }
 
 #[tauri::command]
-pub fn get_system_metrics(state: State<'_, SystemState>) -> SystemMetrics {
-    let mut sys = state.system.lock().unwrap();
+pub fn get_system_metrics(state: State<'_, SystemState>) -> Result<SystemMetrics, String> {
+    let mut sys = state.system.lock().map_err(|e| format!("System mutex poisoned: {}", e))?;
     sys.refresh_cpu_usage();
     sys.refresh_memory();
 
@@ -77,7 +77,7 @@ pub fn get_system_metrics(state: State<'_, SystemState>) -> SystemMetrics {
     };
 
     // Reuse cached Disks, refresh only when needed
-    let mut disks = state.disks.lock().unwrap();
+    let mut disks = state.disks.lock().map_err(|e| format!("Disks mutex poisoned: {}", e))?;
     disks.refresh(true);
 
     let mut disk_total = 0u64;
@@ -95,7 +95,7 @@ pub fn get_system_metrics(state: State<'_, SystemState>) -> SystemMetrics {
         0.0
     };
 
-    SystemMetrics {
+    Ok(SystemMetrics {
         cpu_usage: cpu_usage.min(100.0).max(0.0),
         memory_used: mem_used,
         memory_total: mem_total,
@@ -103,12 +103,12 @@ pub fn get_system_metrics(state: State<'_, SystemState>) -> SystemMetrics {
         disk_used,
         disk_total,
         disk_usage_percent: disk_percent.min(100.0).max(0.0),
-    }
+    })
 }
 
 #[tauri::command]
-pub fn get_processes(state: State<'_, SystemState>) -> Vec<ProcessInfo> {
-    let mut sys = state.system.lock().unwrap();
+pub fn get_processes(state: State<'_, SystemState>) -> Result<Vec<ProcessInfo>, String> {
+    let mut sys = state.system.lock().map_err(|e| format!("System mutex poisoned: {}", e))?;
     sys.refresh_processes(ProcessesToUpdate::All, true);
 
     let mut procs: Vec<ProcessInfo> = sys
@@ -136,5 +136,5 @@ pub fn get_processes(state: State<'_, SystemState>) -> Vec<ProcessInfo> {
 
     procs.sort_by(|a, b| b.cpu_usage.partial_cmp(&a.cpu_usage).unwrap_or(std::cmp::Ordering::Equal));
     procs.truncate(20);
-    procs
+    Ok(procs)
 }

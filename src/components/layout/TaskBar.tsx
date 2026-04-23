@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { WindowState, ThemeConfig } from '../../types';
 import { useWindowStore } from '../../core/window-manager/windowStore';
 import { useThemeStore } from '../../core/theme-engine/themeStore';
+import { TASKBAR_HEIGHT } from '../../core/constants';
 
 interface TaskBarProps {
   onToggleLauncher: () => void;
@@ -17,7 +18,7 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll }:
   const arrangeWindows = useWindowStore((s) => s.arrangeWindows);
   const renameWindow = useWindowStore((s) => s.renameWindow);
   const { theme } = useThemeStore();
-  const [time, setTime] = useState(new Date().toLocaleTimeString('en-US', { hour12: false }));
+  const timeRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [maxButtons, setMaxButtons] = useState(20);
 
@@ -33,10 +34,15 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll }:
   const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
 
+  // Clock: update DOM directly via ref to avoid full TaskBar re-render every second
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTime(new Date().toLocaleTimeString('en-US', { hour12: false }));
-    }, 1000);
+    const update = () => {
+      if (timeRef.current) {
+        timeRef.current.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+      }
+    };
+    update();
+    const timer = setInterval(update, 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -111,7 +117,7 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll }:
         bottom: 0,
         left: 0,
         right: 0,
-        height: 36,
+        height: TASKBAR_HEIGHT,
         display: 'flex',
         alignItems: 'center',
         padding: '0 16px',
@@ -119,7 +125,7 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll }:
         zIndex: 1000,
         background: bgSecondary + 'eb',
         backdropFilter: 'blur(16px)',
-        borderTop: `1px solid ${accentDim.replace('0.3', '0.1')}`,
+        borderTop: `1px solid ${theme.colors.accentDim10 ?? accentDim}`,
       }}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && onBlurAll) onBlurAll();
@@ -131,7 +137,7 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll }:
           fontWeight: 700,
           letterSpacing: 3,
           color: accent,
-          textShadow: `0 0 10px ${accentGlow.replace('0.15', '0.4')}`,
+          textShadow: `0 0 10px ${theme.colors.accentGlow40}`,
           fontFamily: theme.font.display,
           flexShrink: 0,
         }}
@@ -145,7 +151,7 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll }:
           padding: '4px 12px',
           fontSize: 11,
           color: accent,
-          border: `1px solid ${accentDim.replace('0.3', '0.3')}`,
+          border: `1px solid ${accentDim}`,
           borderRadius: 3,
           background: accentGlow,
           cursor: 'default',
@@ -164,7 +170,7 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll }:
           padding: '4px 10px',
           fontSize: 11,
           color: accent,
-          border: `1px solid ${accentDim.replace('0.3', '0.3')}`,
+          border: `1px solid ${accentDim}`,
           borderRadius: 3,
           background: accentGlow,
           cursor: 'default',
@@ -239,7 +245,7 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll }:
                   fontFamily: theme.font.ui,
                   letterSpacing: 1,
                   color: win.isFocused && !win.isMinimized ? accent : win.isMinimized ? textTertiary : textSecondary,
-                  border: win.isFocused && !win.isMinimized ? `1px solid ${accentDim.replace('0.3', '0.3')}` : '1px solid transparent',
+                  border: win.isFocused && !win.isMinimized ? `1px solid ${accentDim}` : '1px solid transparent',
                   background: win.isFocused && !win.isMinimized ? accentGlow : 'transparent',
                   opacity: win.isMinimized ? 0.5 : 1,
                   textDecoration: win.isMinimized ? 'line-through' : 'none',
@@ -283,13 +289,13 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll }:
           flexShrink: 0,
           whiteSpace: 'nowrap',
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.color = accent; e.currentTarget.style.borderColor = accentDim.replace('0.3', '0.2'); }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = accent; e.currentTarget.style.borderColor = theme.colors.accentDim20; }}
         onMouseLeave={(e) => { e.currentTarget.style.color = textSecondary; e.currentTarget.style.borderColor = 'transparent'; }}
       >
         ⚙ Settings
       </button>
-      <div style={{ marginLeft: 'auto', fontFamily: theme.font.mono, fontSize: 12, letterSpacing: 1, color: textTertiary, flexShrink: 0 }}>
-        {time}
+      <div ref={timeRef} style={{ marginLeft: 'auto', fontFamily: theme.font.mono, fontSize: 12, letterSpacing: 1, color: textTertiary, flexShrink: 0 }}>
+        {/* Time updated via ref to avoid re-render */}
       </div>
 
       {/* Window context menu */}
@@ -353,7 +359,7 @@ function OverflowMenuButton({ count, windows, onSelect, onContextMenu, theme }: 
           cursor: 'default',
           fontFamily: theme.font.ui,
           color: textSecondary,
-          border: `1px solid ${accentDim.replace('0.3', '0.2')}`,
+          border: `1px solid ${theme.colors.accentDim20}`,
           background: 'transparent',
           whiteSpace: 'nowrap',
         }}
@@ -377,7 +383,7 @@ function OverflowMenuButton({ count, windows, onSelect, onContextMenu, theme }: 
             border: `1px solid ${theme.colors.borderDefault}`,
             borderRadius: 6,
             padding: '4px 0',
-            boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 16px ${theme.colors.accentGlow.replace('0.15', '0.1')}`,
+            boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 16px ${theme.colors.accentGlow10}`,
             fontFamily: theme.font.mono,
             fontSize: 12,
           }}
@@ -392,7 +398,7 @@ function OverflowMenuButton({ count, windows, onSelect, onContextMenu, theme }: 
                 width: '100%',
                 padding: '6px 16px',
                 textAlign: 'left',
-                background: win.isFocused ? theme.colors.accentGlow.replace('0.15', '0.12') : 'transparent',
+                background: win.isFocused ? (theme.colors.accentGlow12) : 'transparent',
                 border: 'none',
                 color: win.isFocused ? theme.colors.accent : win.isMinimized ? theme.colors.textTertiary : theme.colors.textPrimary,
                 fontFamily: theme.font.mono,
@@ -406,11 +412,11 @@ function OverflowMenuButton({ count, windows, onSelect, onContextMenu, theme }: 
                 whiteSpace: 'nowrap',
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = theme.colors.accentGlow.replace('0.15', '0.12');
+                (e.currentTarget as HTMLButtonElement).style.background = theme.colors.accentGlow12;
               }}
               onMouseLeave={(e) => {
                 (e.currentTarget as HTMLButtonElement).style.background = win.isFocused
-                  ? theme.colors.accentGlow.replace('0.15', '0.12')
+                  ? (theme.colors.accentGlow12)
                   : 'transparent';
               }}
               title={win.title}
@@ -475,7 +481,7 @@ function WindowContextMenu({ x, y, winId, onClose, onFocus, onCloseWindow, onRen
         border: `1px solid ${theme.colors.borderDefault}`,
         borderRadius: 6,
         padding: '4px 0',
-        boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 16px ${theme.colors.accentGlow.replace('0.15', '0.1')}`,
+        boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 16px ${theme.colors.accentGlow10}`,
         fontFamily: theme.font.mono,
         fontSize: 12,
       }}
@@ -486,7 +492,7 @@ function WindowContextMenu({ x, y, winId, onClose, onFocus, onCloseWindow, onRen
             key={i}
             style={{
               height: 1,
-              background: theme.colors.accentDim.replace('0.3', '0.15'),
+              background: theme.colors.accentDim15,
               margin: '4px 8px',
             }}
           />
@@ -508,7 +514,7 @@ function WindowContextMenu({ x, y, winId, onClose, onFocus, onCloseWindow, onRen
               transition: 'background 0.15s',
             }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = theme.colors.accentGlow.replace('0.15', '0.12');
+              (e.currentTarget as HTMLButtonElement).style.background = theme.colors.accentGlow12;
             }}
             onMouseLeave={(e) => {
               (e.currentTarget as HTMLButtonElement).style.background = 'transparent';

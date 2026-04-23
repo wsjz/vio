@@ -144,7 +144,7 @@ export function Viewer3D() {
       ctx.clearRect(0, 0, W, H);
 
       // Grid
-      ctx.strokeStyle = accentGlow.replace('0.15', '0.03');
+      ctx.strokeStyle = theme.colors.accentGlow03;
       ctx.lineWidth = 0.5;
       for (let i = -5; i <= 5; i++) {
         const p1 = project(rotateY(rotateX({ x: i * 40, y: 0, z: -200 }, 0), 0), cx, cy + 60, 1);
@@ -201,7 +201,7 @@ export function Viewer3D() {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
       {/* Toolbar */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '6px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: 3, border: `1px solid ${accentGlow.replace('0.15', '0.06')}` }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '6px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: 3, border: `1px solid ${theme.colors.accentGlow06}` }}>
         {(['cube', 'pyramid', 'octahedron'] as ShapeType[]).map((s) => (
           <button
             key={s}
@@ -209,7 +209,7 @@ export function Viewer3D() {
             style={{
               padding: '3px 10px',
               borderRadius: 3,
-              border: shape === s ? `1px solid ${accentGlow.replace('0.15', '0.3')}` : `1px solid ${accentGlow.replace('0.15', '0.08')}`,
+              border: shape === s ? `1px solid ${theme.colors.accentGlow30}` : `1px solid ${theme.colors.accentGlow08}`,
               background: shape === s ? accentGlow : 'transparent',
               color: shape === s ? accent : textTertiary,
               cursor: 'default',
@@ -221,13 +221,13 @@ export function Viewer3D() {
             {s}
           </button>
         ))}
-        <div style={{ width: 1, height: 16, background: accentGlow.replace('0.15', '0.1') }} />
+        <div style={{ width: 1, height: 16, background: theme.colors.accentGlow10 }} />
         <button
           onClick={() => setAutoRotate((v) => !v)}
           style={{
             padding: '3px 10px',
             borderRadius: 3,
-            border: `1px solid ${autoRotate ? accentGlow.replace('0.15', '0.3') : accentGlow.replace('0.15', '0.08')}`,
+            border: `1px solid ${autoRotate ? theme.colors.accentGlow30 : theme.colors.accentGlow08}`,
             background: autoRotate ? accentGlow : 'transparent',
             color: autoRotate ? accent : textTertiary,
             cursor: 'default',
@@ -252,7 +252,7 @@ export function Viewer3D() {
       </div>
 
       {/* Canvas */}
-      <div style={{ flex: 1, position: 'relative', background: 'rgba(0,0,0,0.15)', borderRadius: 4, border: `1px solid ${accentGlow.replace('0.15', '0.06')}` }}>
+      <div style={{ flex: 1, position: 'relative', background: 'rgba(0,0,0,0.15)', borderRadius: 4, border: `1px solid ${theme.colors.accentGlow06}` }}>
         <canvas ref={canvasRef} width={700} height={450} style={{ width: '100%', height: '100%', cursor: 'grab' }} />
         <div style={{ position: 'absolute', bottom: 8, right: 8, fontSize: 9, color: textTertiary, fontFamily: theme.font.mono }}>
           Drag to rotate

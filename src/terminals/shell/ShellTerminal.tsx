@@ -59,12 +59,13 @@ export function ShellTerminal({ isFocused }: ShellTerminalProps) {
         prev.map((e) => (e.id === id ? { ...e, result, isLoading: false } : e))
       );
     } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
       setEntries((prev) =>
         prev.map((e) =>
           e.id === id
             ? {
                 ...e,
-                result: { stdout: '', stderr: String(e), exit_code: -1 },
+                result: { stdout: '', stderr: errMsg, exit_code: -1 },
                 isLoading: false,
               }
             : e

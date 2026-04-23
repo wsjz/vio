@@ -1,4 +1,5 @@
 import type { TerminalType } from '../../types';
+import { MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT } from '../constants';
 
 export interface TiledLayout {
   type: TerminalType;
@@ -87,8 +88,8 @@ export function computeArrangedLayout(
       y: gap + Math.floor(i / cols) * (cellH + gap),
     },
     size: {
-      width: Math.max(200, cellW),
-      height: Math.max(150, cellH),
+      width: Math.max(MIN_WINDOW_WIDTH, cellW),
+      height: Math.max(MIN_WINDOW_HEIGHT, cellH),
     },
   }));
 }

@@ -10,6 +10,7 @@ import { useWindowStore } from '../../core/window-manager/windowStore';
 import { useThemeStore } from '../../core/theme-engine/themeStore';
 import { computeTiledLayout } from '../../core/window-manager/tileWindows';
 import { loadLayout, saveLayout } from '../../api/tauri';
+import { TASKBAR_HEIGHT, STARTUP_DURATION, LAYOUT_SAVE_DEBOUNCE } from '../../core/constants';
 import type { TerminalType } from '../../types';
 
 const IS_TAURI = typeof window !== 'undefined' && window.__TAURI_INTERNALS__ !== undefined;
@@ -39,8 +40,14 @@ export function Desktop() {
   const windowsRef = useRef(windows);
   windowsRef.current = windows;
 
+  // Prevent duplicate window creation in React Strict Mode
+  const hasInitiated = useRef(false);
+
   // Load last-session layout on startup, fallback to tiled layout
   useEffect(() => {
+    if (hasInitiated.current) return;
+    hasInitiated.current = true;
+
     const timer = setTimeout(() => {
       if (IS_TAURI) {
         loadLayout('last-session')
@@ -55,7 +62,7 @@ export function Desktop() {
           .catch(() => {
             // Fallback to tiled layout
             const screenW = window.innerWidth;
-            const screenH = window.innerHeight - 36;
+            const screenH = window.innerHeight - TASKBAR_HEIGHT;
             const layouts = computeTiledLayout(screenW, screenH);
             layouts.forEach((layout) => {
               createWindow(layout.type, {}, {
@@ -66,7 +73,7 @@ export function Desktop() {
           });
       } else {
         const screenW = window.innerWidth;
-        const screenH = window.innerHeight - 36;
+        const screenH = window.innerHeight - TASKBAR_HEIGHT;
         const layouts = computeTiledLayout(screenW, screenH);
         layouts.forEach((layout) => {
           createWindow(layout.type, {}, {
@@ -75,7 +82,7 @@ export function Desktop() {
           });
         });
       }
-    }, 2800);
+    }, STARTUP_DURATION + 300);
     return () => clearTimeout(timer);
   }, [createWindow]);
 
@@ -89,14 +96,14 @@ export function Desktop() {
         size: { width: w.size.width, height: w.size.height },
       }));
       saveLayout('last-session', 'Auto-saved session', layoutWindows).catch(() => {});
-    }, 3000);
+    }, LAYOUT_SAVE_DEBOUNCE);
     return () => clearTimeout(timer);
   }, [windows]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setStartupDone(true);
-    }, 2500);
+    }, STARTUP_DURATION);
     return () => clearTimeout(timer);
   }, []);
 
@@ -226,7 +233,7 @@ export function Desktop() {
           zIndex: 0,
           pointerEvents: 'none',
           backgroundImage:
-            `linear-gradient(${theme.colors.accentDim.replace('0.3', '0.06')} 1px, transparent 1px), linear-gradient(90deg, ${theme.colors.accentDim.replace('0.3', '0.06')} 1px, transparent 1px)`,
+            `linear-gradient(${theme.colors.accentDim06} 1px, transparent 1px), linear-gradient(90deg, ${theme.colors.accentDim06} 1px, transparent 1px)`,
           backgroundSize: '50px 50px',
         }}
       />
@@ -331,11 +338,11 @@ export function Desktop() {
               style={{
                 fontSize: 14,
                 letterSpacing: 2,
-                color: theme.colors.accentDim.replace('0.3', '0.5'),
+                color: theme.colors.accentDim50,
                 fontFamily: theme.font.mono,
               }}
             >
-              Press Ctrl+T to open a terminal
+              Press {navigator.platform.includes('Mac') ? 'Cmd' : 'Ctrl'}+T to open a terminal
             </div>
           </div>
         </div>

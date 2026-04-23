@@ -81,7 +81,7 @@ export function FileManager() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <button
             onClick={navigateUp}
-            style={{ padding: '2px 8px', background: accentGlow, border: `1px solid ${accentGlow.replace('0.15', '0.2')}`, borderRadius: 3, color: accent, cursor: 'default', fontSize: 11 }}
+            style={{ padding: '2px 8px', background: accentGlow, border: `1px solid ${theme.colors.accentGlow20}`, borderRadius: 3, color: accent, cursor: 'default', fontSize: 11 }}
           >
             ↑ Up
           </button>
@@ -111,7 +111,7 @@ export function FileManager() {
                   <tr
                     key={entry.path}
                     style={{ transition: 'background 0.15s', cursor: 'default' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = accentGlow.replace('0.15', '0.03'))}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = theme.colors.accentGlow03!)}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     onClick={() => handleEntryClick(entry)}
                   >
@@ -133,7 +133,7 @@ export function FileManager() {
       </div>
 
       {/* Preview */}
-      <div style={{ flex: 1, borderLeft: `1px solid ${accentGlow.replace('0.15', '0.06')}`, paddingLeft: 12, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, borderLeft: `1px solid ${theme.colors.accentGlow06}`, paddingLeft: 12, display: 'flex', flexDirection: 'column' }}>
         <div style={{ fontSize: 10, color: textTertiary, marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase' }}>Preview</div>
         {preview ? (
           <div style={{ flex: 1, overflow: 'auto' }}>

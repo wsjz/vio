@@ -2,8 +2,9 @@ import { create } from 'zustand';
 import type { WindowState, TerminalType, TerminalConfig, Size2D } from '../../types';
 import { usePluginStore } from '../plugin-system';
 import { computeArrangedLayout } from './tileWindows';
+import { Z_INDEX_BASE, WINDOW_CASCADE_OFFSET } from '../constants';
 
-let zIndexCounter = 100;
+let zIndexCounter = Z_INDEX_BASE;
 let windowIdCounter = 0;
 
 const TERMINAL_CONFIGS: Record<string, { title: string; defaultSize: Size2D }> = {
@@ -67,7 +68,7 @@ export const useWindowStore = create<WindowStore>((set) => ({
   createWindow: (type, config = {}, overrides = {}) => {
     const cfg = getTerminalConfig(type);
     const id = `win-${++windowIdCounter}`;
-    const offset = (windowIdCounter % 5) * 30;
+    const offset = (windowIdCounter % 5) * WINDOW_CASCADE_OFFSET;
 
     set((state) => ({
       windows: [

@@ -82,7 +82,7 @@ export function MapViewer() {
       ctx.fillRect(0, 0, W, H);
 
       // Grid
-      ctx.strokeStyle = accentGlow.replace('0.15', '0.04');
+      ctx.strokeStyle = theme.colors.accentGlow04;
       ctx.lineWidth = 0.5;
       const gridSize = 40;
       for (let x = 0; x < W; x += gridSize) {
@@ -102,7 +102,7 @@ export function MapViewer() {
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(b.x, b.y);
-        ctx.strokeStyle = isActive ? accentDim : accentGlow.replace('0.15', '0.06');
+        ctx.strokeStyle = isActive ? accentDim : theme.colors.accentGlow06;
         ctx.lineWidth = isActive ? 1.5 : 0.5;
         ctx.stroke();
 
@@ -126,14 +126,14 @@ export function MapViewer() {
 
         let radius = 4;
         let glow = accentGlow;
-        if (node.type === 'city') { radius = 7; glow = accentGlow.replace('0.15', '0.2'); }
+        if (node.type === 'city') { radius = 7; glow = theme.colors.accentGlow20; }
         else if (node.type === 'outpost') { radius = 5; }
 
         // Glow ring
         if (isSelected || isHover) {
           ctx.beginPath();
           ctx.arc(node.x, node.y, radius + 6 + pulse, 0, Math.PI * 2);
-          ctx.strokeStyle = accentGlow.replace('0.15', '0.15');
+          ctx.strokeStyle = accentGlow;
           ctx.lineWidth = 1;
           ctx.stroke();
         }
@@ -141,7 +141,7 @@ export function MapViewer() {
         // Node body
         ctx.beginPath();
         ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = isSelected ? accent : accentGlow.replace('0.15', '0.3');
+        ctx.fillStyle = isSelected ? accent : theme.colors.accentGlow30;
         ctx.fill();
         ctx.strokeStyle = accent;
         ctx.lineWidth = isSelected ? 2 : 1;
@@ -158,7 +158,7 @@ export function MapViewer() {
 
       // Scan line effect
       const scanY = (t * 80) % (H + 100) - 50;
-      ctx.fillStyle = accentGlow.replace('0.15', '0.12');
+      ctx.fillStyle = theme.colors.accentGlow12;
       ctx.fillRect(0, scanY, W, 2);
 
     };
@@ -217,13 +217,13 @@ export function MapViewer() {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
       {/* Toolbar */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '6px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: 3, border: `1px solid ${accentGlow.replace('0.15', '0.06')}` }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '6px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: 3, border: `1px solid ${theme.colors.accentGlow06}` }}>
         <button
           onClick={() => setMapData(generateMap())}
           style={{
             padding: '3px 12px',
             borderRadius: 3,
-            border: `1px solid ${accentGlow.replace('0.15', '0.2')}`,
+            border: `1px solid ${theme.colors.accentGlow20}`,
             background: accentGlow,
             color: accent,
             cursor: 'default',
@@ -238,14 +238,14 @@ export function MapViewer() {
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, fontSize: 9, color: textTertiary }}>
           <span><span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: accent, marginRight: 4 }} /> City</span>
-          <span><span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: accentGlow.replace('0.15', '0.3'), marginRight: 4, border: `1px solid ${accent}` }} /> Outpost</span>
-          <span><span style={{ display: 'inline-block', width: 4, height: 4, borderRadius: '50%', background: accentGlow.replace('0.15', '0.2'), marginRight: 4 }} /> Waypoint</span>
+          <span><span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: theme.colors.accentGlow30, marginRight: 4, border: `1px solid ${accent}` }} /> Outpost</span>
+          <span><span style={{ display: 'inline-block', width: 4, height: 4, borderRadius: '50%', background: theme.colors.accentGlow20, marginRight: 4 }} /> Waypoint</span>
         </div>
       </div>
 
       <div style={{ flex: 1, display: 'flex', gap: 8 }}>
         {/* Map canvas */}
-        <div style={{ flex: 1, position: 'relative', borderRadius: 4, border: `1px solid ${accentGlow.replace('0.15', '0.06')}`, overflow: 'hidden' }}>
+        <div style={{ flex: 1, position: 'relative', borderRadius: 4, border: `1px solid ${theme.colors.accentGlow06}`, overflow: 'hidden' }}>
           <canvas
             ref={canvasRef}
             width={800}
@@ -258,7 +258,7 @@ export function MapViewer() {
         </div>
 
         {/* Info panel */}
-        <div style={{ width: 140, padding: 10, background: 'rgba(0,0,0,0.2)', borderRadius: 4, border: `1px solid ${accentGlow.replace('0.15', '0.06')}`, fontSize: 10 }}>
+        <div style={{ width: 140, padding: 10, background: 'rgba(0,0,0,0.2)', borderRadius: 4, border: `1px solid ${theme.colors.accentGlow06}`, fontSize: 10 }}>
           <div style={{ fontSize: 9, color: textTertiary, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8, fontFamily: theme.font.ui }}>
             Node Info
           </div>

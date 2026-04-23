@@ -3,6 +3,7 @@ import type { WindowState, ThemeConfig } from '../../types';
 import { WindowContent } from './WindowContent';
 import { useThemeStore } from '../../core/theme-engine/themeStore';
 import { useWindowStore } from '../../core/window-manager/windowStore';
+import { MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT } from '../../core/constants';
 
 interface WindowFrameProps {
   window: WindowState;
@@ -21,8 +22,8 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
   const updateWindowPosition = useWindowStore((s) => s.updateWindowPosition);
   const updateWindowSize = useWindowStore((s) => s.updateWindowSize);
   const renameWindow = useWindowStore((s) => s.renameWindow);
-  const windows = useWindowStore((s) => s.windows);
-  const anyFocused = windows.some((w) => w.isFocused);
+  // Only subscribe to whether any window is focused, not the whole windows array
+  const anyFocused = useWindowStore((s) => s.windows.some((w) => w.isFocused));
   const isActive = win.isFocused || !anyFocused;
 
   // Title rename state
@@ -48,9 +49,15 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
   const accentDim = theme.colors.accentDim;
   const accentGlow = theme.colors.accentGlow;
 
-  // Keep a ref to the latest onFocus so the effect doesn't need to re-bind
+  // Keep refs to latest props so the effect doesn't need to re-bind
   const onFocusRef = useRef(onFocus);
   onFocusRef.current = onFocus;
+  const winIdRef = useRef(win.id);
+  winIdRef.current = win.id;
+  const updatePositionRef = useRef(updateWindowPosition);
+  updatePositionRef.current = updateWindowPosition;
+  const updateSizeRef = useRef(updateWindowSize);
+  updateSizeRef.current = updateWindowSize;
 
   const focusContentInput = useCallback(() => {
     requestAnimationFrame(() => {
@@ -106,18 +113,18 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
         const dir = resizingRef.current;
         if (frameRef.current) {
           if (dir.includes('e')) {
-            frameRef.current.style.width = `${Math.max(320, startPosRef.current.width + dx)}px`;
+            frameRef.current.style.width = `${Math.max(MIN_WINDOW_WIDTH, startPosRef.current.width + dx)}px`;
           }
           if (dir.includes('s')) {
-            frameRef.current.style.height = `${Math.max(200, startPosRef.current.height + dy)}px`;
+            frameRef.current.style.height = `${Math.max(MIN_WINDOW_HEIGHT, startPosRef.current.height + dy)}px`;
           }
           if (dir.includes('w')) {
-            const newW = Math.max(320, startPosRef.current.width - dx);
+            const newW = Math.max(MIN_WINDOW_WIDTH, startPosRef.current.width - dx);
             frameRef.current.style.width = `${newW}px`;
             frameRef.current.style.left = `${startPosRef.current.left + startPosRef.current.width - newW}px`;
           }
           if (dir.includes('n')) {
-            const newH = Math.max(200, startPosRef.current.height - dy);
+            const newH = Math.max(MIN_WINDOW_HEIGHT, startPosRef.current.height - dy);
             frameRef.current.style.height = `${newH}px`;
             frameRef.current.style.top = `${startPosRef.current.top + startPosRef.current.height - newH}px`;
           }
@@ -129,12 +136,12 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
       if (draggingRef.current && frameRef.current) {
         const left = parseInt(frameRef.current.style.left || '0', 10);
         const top = parseInt(frameRef.current.style.top || '0', 10);
-        updateWindowPosition(win.id, { x: left, y: top });
+        updatePositionRef.current(winIdRef.current, { x: left, y: top });
       }
       if (resizingRef.current && frameRef.current) {
         const width = parseInt(frameRef.current.style.width || '0', 10);
         const height = parseInt(frameRef.current.style.height || '0', 10);
-        updateWindowSize(win.id, { width, height });
+        updateSizeRef.current(winIdRef.current, { width, height });
       }
       // Only trigger focus after drag/resize finishes to avoid re-render mid-drag
       if (draggingRef.current || resizingRef.current) {
@@ -150,7 +157,7 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // No deps needed — all mutable values are accessed through refs
   }, []);
 
   const cornerStyle: React.CSSProperties = {
@@ -175,21 +182,21 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
         zIndex: win.zIndex,
         background: theme.colors.bgSecondary + 'b0',
         backdropFilter: 'blur(16px)',
-        border: `1px solid ${isActive ? accentDim.replace('0.3', '0.5') : theme.colors.borderDefault}`,
+        border: `1px solid ${isActive ? theme.colors.accentDim50 : theme.colors.borderDefault}`,
         borderRadius: '4px',
         boxShadow: isActive
-          ? `0 10px 40px rgba(0,0,0,0.5), 0 0 20px ${accentGlow.replace('0.15', '0.25')}, 0 0 40px ${accentGlow.replace('0.15', '0.12')}, inset 0 0 0 1px ${accentGlow.replace('0.15', '0.1')}`
-          : `0 10px 40px rgba(0,0,0,0.5), 0 0 10px ${accentGlow.replace('0.15', '0.08')}`,
-        minWidth: '320px',
-        minHeight: '200px',
+          ? `0 10px 40px rgba(0,0,0,0.5), 0 0 20px ${theme.colors.accentGlow25}, 0 0 40px ${theme.colors.accentGlow12}, inset 0 0 0 1px ${theme.colors.accentGlow10}`
+          : `0 10px 40px rgba(0,0,0,0.5), 0 0 10px ${theme.colors.accentGlow08}`,
+        minWidth: `${MIN_WINDOW_WIDTH}px`,
+        minHeight: `${MIN_WINDOW_HEIGHT}px`,
       }}
       onMouseDown={() => { onFocus(); focusContentInput(); }}
     >
       {/* Corner decorations */}
-      <div style={{ ...cornerStyle, top: 4, left: 4, borderTop: `1px solid ${accentDim.replace('0.3', '0.3')}`, borderLeft: `1px solid ${accentDim.replace('0.3', '0.3')}` }} />
-      <div style={{ ...cornerStyle, top: 4, right: 4, borderTop: `1px solid ${accentDim.replace('0.3', '0.3')}`, borderRight: `1px solid ${accentDim.replace('0.3', '0.3')}` }} />
-      <div style={{ ...cornerStyle, bottom: 4, left: 4, borderBottom: `1px solid ${accentDim.replace('0.3', '0.3')}`, borderLeft: `1px solid ${accentDim.replace('0.3', '0.3')}` }} />
-      <div style={{ ...cornerStyle, bottom: 4, right: 4, borderBottom: `1px solid ${accentDim.replace('0.3', '0.3')}`, borderRight: `1px solid ${accentDim.replace('0.3', '0.3')}` }} />
+      <div style={{ ...cornerStyle, top: 4, left: 4, borderTop: `1px solid ${accentDim}`, borderLeft: `1px solid ${accentDim}` }} />
+      <div style={{ ...cornerStyle, top: 4, right: 4, borderTop: `1px solid ${accentDim}`, borderRight: `1px solid ${accentDim}` }} />
+      <div style={{ ...cornerStyle, bottom: 4, left: 4, borderBottom: `1px solid ${accentDim}`, borderLeft: `1px solid ${accentDim}` }} />
+      <div style={{ ...cornerStyle, bottom: 4, right: 4, borderBottom: `1px solid ${accentDim}`, borderRight: `1px solid ${accentDim}` }} />
 
       {/* Title bar */}
       <div
@@ -199,8 +206,8 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: isActive ? `${accentGlow.replace('0.15', '0.06')}` : 'transparent',
-          borderBottom: `1px solid ${isActive ? accentDim.replace('0.3', '0.15') : 'rgba(255,255,255,0.03)'}`,
+          background: isActive ? `${theme.colors.accentGlow06}` : 'transparent',
+          borderBottom: `1px solid ${isActive ? theme.colors.accentDim15 : 'rgba(255,255,255,0.03)'}`,
           cursor: 'move',
           transition: 'background 0.2s, border-color 0.2s',
         }}
@@ -308,7 +315,7 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
               fontFamily: theme.font.mono,
               padding: 0,
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = accentGlow.replace('0.15', '0.1'); (e.currentTarget as HTMLButtonElement).style.color = accent; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = theme.colors.accentGlow10 ?? accentGlow; (e.currentTarget as HTMLButtonElement).style.color = accent; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = theme.colors.textTertiary; }}
           >
             −
@@ -332,7 +339,7 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
               fontFamily: theme.font.mono,
               padding: 0,
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = accentGlow.replace('0.15', '0.1'); (e.currentTarget as HTMLButtonElement).style.color = accent; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = theme.colors.accentGlow10 ?? accentGlow; (e.currentTarget as HTMLButtonElement).style.color = accent; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = theme.colors.textTertiary; }}
           >
             □
@@ -356,7 +363,7 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
               fontFamily: theme.font.mono,
               padding: 0,
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = accentGlow.replace('0.15', '0.1'); (e.currentTarget as HTMLButtonElement).style.color = accent; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = theme.colors.accentGlow10 ?? accentGlow; (e.currentTarget as HTMLButtonElement).style.color = accent; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = theme.colors.textTertiary; }}
           >
             ×
@@ -449,7 +456,7 @@ function WindowTitleContextMenu({ x, y, onClose, onFocus, onRename, onCloseWindo
         border: `1px solid ${theme.colors.borderDefault}`,
         borderRadius: 6,
         padding: '4px 0',
-        boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 16px ${theme.colors.accentGlow.replace('0.15', '0.1')}`,
+        boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 16px ${theme.colors.accentGlow10}`,
         fontFamily: theme.font.mono,
         fontSize: 12,
       }}
@@ -460,7 +467,7 @@ function WindowTitleContextMenu({ x, y, onClose, onFocus, onRename, onCloseWindo
             key={i}
             style={{
               height: 1,
-              background: theme.colors.accentDim.replace('0.3', '0.15'),
+              background: theme.colors.accentDim15,
               margin: '4px 8px',
             }}
           />
@@ -482,7 +489,7 @@ function WindowTitleContextMenu({ x, y, onClose, onFocus, onRename, onCloseWindo
               transition: 'background 0.15s',
             }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = theme.colors.accentGlow.replace('0.15', '0.12');
+              (e.currentTarget as HTMLButtonElement).style.background = theme.colors.accentGlow12;
             }}
             onMouseLeave={(e) => {
               (e.currentTarget as HTMLButtonElement).style.background = 'transparent';

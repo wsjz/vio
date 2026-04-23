@@ -309,7 +309,7 @@ export function OpenCLITerminal({ context, isFocused }: OpenCLITerminalProps) {
           justifyContent: 'space-between',
           alignItems: 'center',
           padding: '4px 8px',
-          borderBottom: `1px solid ${theme.colors.accentDim.replace('0.3', '0.1')}`,
+          borderBottom: `1px solid ${theme.colors.accentDim10}`,
           fontSize: 10,
           color: textTertiary,
         }}
@@ -443,7 +443,7 @@ export function OpenCLITerminal({ context, isFocused }: OpenCLITerminalProps) {
       <div
         style={{
           padding: '4px 8px',
-          borderTop: `1px solid ${theme.colors.accentDim.replace('0.3', '0.1')}`,
+          borderTop: `1px solid ${theme.colors.accentDim10}`,
           fontSize: 9,
           color: textTertiary,
           display: 'flex',
