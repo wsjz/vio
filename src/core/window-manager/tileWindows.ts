@@ -67,39 +67,28 @@ export function computeArrangedLayout(
   screenH: number
 ): { id: string; position: { x: number; y: number }; size: { width: number; height: number } }[] {
   const gap = 16;
-  const MIN_WIDTH = 520;
-  const MIN_HEIGHT = 400;
-  const MAX_COLS = 4;
   const visible = windows.filter((w) => w.type !== 'widget-clock');
-  const count = visible.length;
-  if (count === 0) return [];
+  const n = visible.length;
+  if (n === 0) return [];
 
-  // Determine columns: never exceed MAX_COLS, always respect MIN_WIDTH
-  let cols = Math.min(count, MAX_COLS, Math.max(1, Math.floor((screenW - gap) / (MIN_WIDTH + gap))));
-  let rows = Math.ceil(count / cols);
+  // Simple grid: choose columns based on screen aspect ratio
+  // This ensures all n windows get a layout slot
+  let cols = Math.round(Math.sqrt(n * (screenW / screenH)));
+  cols = Math.max(1, Math.min(cols, n));
+  let rows = Math.ceil(n / cols);
 
-  // If rows would push height below MIN_HEIGHT, try fewer columns first
-  while (rows > 1 && Math.floor((screenH - gap * (rows + 1)) / rows) < MIN_HEIGHT && cols > 1) {
-    cols--;
-    rows = Math.ceil(count / cols);
-  }
+  const cellW = Math.floor((screenW - gap * (cols + 1)) / cols);
+  const cellH = Math.floor((screenH - gap * (rows + 1)) / rows);
 
-  const cellW = Math.max(MIN_WIDTH, Math.floor((screenW - gap * (cols + 1)) / cols));
-  const cellH = Math.max(MIN_HEIGHT, Math.floor((screenH - gap * (rows + 1)) / rows));
-
-  return visible.map((w, i) => {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    return {
-      id: w.id,
-      position: {
-        x: gap + col * (cellW + gap),
-        y: gap + row * (cellH + gap),
-      },
-      size: {
-        width: cellW,
-        height: cellH,
-      },
-    };
-  });
+  return visible.map((w, i) => ({
+    id: w.id,
+    position: {
+      x: gap + (i % cols) * (cellW + gap),
+      y: gap + Math.floor(i / cols) * (cellH + gap),
+    },
+    size: {
+      width: Math.max(200, cellW),
+      height: Math.max(150, cellH),
+    },
+  }));
 }

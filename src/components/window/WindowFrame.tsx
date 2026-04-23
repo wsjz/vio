@@ -1,5 +1,5 @@
-import { useRef, useCallback, useEffect } from 'react';
-import type { WindowState } from '../../types';
+import { useRef, useCallback, useEffect, useState } from 'react';
+import type { WindowState, ThemeConfig } from '../../types';
 import { WindowContent } from './WindowContent';
 import { useThemeStore } from '../../core/theme-engine/themeStore';
 import { useWindowStore } from '../../core/window-manager/windowStore';
@@ -20,9 +20,29 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
   const { theme } = useThemeStore();
   const updateWindowPosition = useWindowStore((s) => s.updateWindowPosition);
   const updateWindowSize = useWindowStore((s) => s.updateWindowSize);
+  const renameWindow = useWindowStore((s) => s.renameWindow);
   const windows = useWindowStore((s) => s.windows);
   const anyFocused = windows.some((w) => w.isFocused);
   const isActive = win.isFocused || !anyFocused;
+
+  // Title rename state
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(win.title);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  // Context menu state
+  const [ctxMenu, setCtxMenu] = useState<{ visible: boolean; x: number; y: number }>({
+    visible: false,
+    x: 0,
+    y: 0,
+  });
+
+  useEffect(() => {
+    if (renaming && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renaming]);
 
   const accent = theme.colors.accent;
   const accentDim = theme.colors.accentDim;
@@ -185,8 +205,13 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
           transition: 'background 0.2s, border-color 0.2s',
         }}
         onMouseDown={handleTitleMouseDown}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setCtxMenu({ visible: true, x: e.clientX, y: e.clientY });
+        }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
           {/* Status indicator */}
           <div
             style={{
@@ -196,21 +221,72 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
               background: isActive ? accent : theme.colors.textTertiary,
               opacity: isActive ? 1 : 0.3,
               boxShadow: isActive ? `0 0 6px ${accentGlow}` : 'none',
+              flexShrink: 0,
             }}
           />
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 500,
-              textTransform: 'uppercase',
-              letterSpacing: 2,
-              color: isActive ? accent : theme.colors.textTertiary,
-              fontFamily: theme.font.mono,
-              opacity: isActive ? 1 : 0.6,
-            }}
-          >
-            {win.title}
-          </span>
+          {renaming ? (
+            <input
+              ref={renameInputRef}
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onBlur={() => {
+                const trimmed = renameValue.trim();
+                if (trimmed) renameWindow(win.id, trimmed);
+                setRenaming(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const trimmed = renameValue.trim();
+                  if (trimmed) renameWindow(win.id, trimmed);
+                  setRenaming(false);
+                }
+                if (e.key === 'Escape') {
+                  setRenameValue(win.title);
+                  setRenaming(false);
+                }
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              style={{
+                flex: 1,
+                fontSize: 10,
+                fontWeight: 500,
+                textTransform: 'uppercase',
+                letterSpacing: 2,
+                color: accent,
+                fontFamily: theme.font.mono,
+                background: 'transparent',
+                border: `1px solid ${accent}`,
+                borderRadius: 2,
+                outline: 'none',
+                padding: '0 4px',
+                height: 20,
+                minWidth: 0,
+              }}
+            />
+          ) : (
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 500,
+                textTransform: 'uppercase',
+                letterSpacing: 2,
+                color: isActive ? accent : theme.colors.textTertiary,
+                fontFamily: theme.font.mono,
+                opacity: isActive ? 1 : 0.6,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                userSelect: 'none',
+              }}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                setRenaming(true);
+                setRenameValue(win.title);
+              }}
+            >
+              {win.title}
+            </span>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {/* Minimize: horizontal line */}
@@ -305,6 +381,116 @@ export function WindowFrame({ window: win, onFocus, onClose, onMinimize, onMaxim
           <div style={{ position: 'absolute', bottom: -3, right: -3, width: 12, height: 12, cursor: 'nwse-resize' }} onMouseDown={(e) => handleResizeMouseDown(e, 'se')} />
           <div style={{ position: 'absolute', bottom: -3, left: -3, width: 12, height: 12, cursor: 'nesw-resize' }} onMouseDown={(e) => handleResizeMouseDown(e, 'sw')} />
         </>
+      )}
+
+      {/* Title bar context menu */}
+      {ctxMenu.visible && (
+        <WindowTitleContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onClose={() => setCtxMenu({ visible: false, x: 0, y: 0 })}
+          onFocus={() => { onFocus(); setCtxMenu({ visible: false, x: 0, y: 0 }); }}
+          onRename={() => { setRenaming(true); setRenameValue(win.title); setCtxMenu({ visible: false, x: 0, y: 0 }); }}
+          onCloseWindow={() => { onClose(); setCtxMenu({ visible: false, x: 0, y: 0 }); }}
+          theme={theme}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ─── Title Bar Context Menu ─── */
+interface WindowTitleContextMenuProps {
+  x: number;
+  y: number;
+  onClose: () => void;
+  onFocus: () => void;
+  onRename: () => void;
+  onCloseWindow: () => void;
+  theme: import('../../types').ThemeConfig;
+}
+
+function WindowTitleContextMenu({ x, y, onClose, onFocus, onRename, onCloseWindow, theme }: WindowTitleContextMenuProps) {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose();
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [onClose]);
+
+  const items = [
+    { label: 'Focus', onClick: onFocus },
+    { label: 'Rename', onClick: onRename },
+    { divider: true },
+    { label: 'Close', onClick: onCloseWindow },
+  ];
+
+  return (
+    <div
+      ref={menuRef}
+      style={{
+        position: 'fixed',
+        left: x,
+        top: y,
+        zIndex: 9999,
+        minWidth: 120,
+        background: theme.colors.bgSecondary + 'f0',
+        backdropFilter: 'blur(16px)',
+        border: `1px solid ${theme.colors.borderDefault}`,
+        borderRadius: 6,
+        padding: '4px 0',
+        boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 16px ${theme.colors.accentGlow.replace('0.15', '0.1')}`,
+        fontFamily: theme.font.mono,
+        fontSize: 12,
+      }}
+    >
+      {items.map((item, i) =>
+        item.divider ? (
+          <div
+            key={i}
+            style={{
+              height: 1,
+              background: theme.colors.accentDim.replace('0.3', '0.15'),
+              margin: '4px 8px',
+            }}
+          />
+        ) : (
+          <button
+            key={i}
+            onClick={item.onClick}
+            style={{
+              display: 'block',
+              width: '100%',
+              padding: '6px 16px',
+              textAlign: 'left',
+              background: 'transparent',
+              border: 'none',
+              color: theme.colors.textPrimary,
+              fontFamily: theme.font.mono,
+              fontSize: 12,
+              cursor: 'default',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = theme.colors.accentGlow.replace('0.15', '0.12');
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+            }}
+          >
+            {item.label}
+          </button>
+        )
       )}
     </div>
   );

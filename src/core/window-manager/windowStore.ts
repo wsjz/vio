@@ -48,10 +48,12 @@ interface WindowStore {
   windows: WindowState[];
   createWindow: (type: TerminalType, config?: TerminalConfig, overrides?: { position?: { x: number; y: number }; size?: { width: number; height: number } }) => void;
   closeWindow: (id: string) => void;
+  closeAllWindows: () => void;
   focusWindow: (id: string) => void;
   blurAllWindows: () => void;
   updateWindowPosition: (id: string, position: { x: number; y: number }) => void;
   updateWindowSize: (id: string, size: { width: number; height: number }) => void;
+  renameWindow: (id: string, title: string) => void;
   toggleMinimize: (id: string) => void;
   toggleMaximize: (id: string) => void;
   arrangeWindows: () => void;
@@ -94,6 +96,11 @@ export const useWindowStore = create<WindowStore>((set) => ({
       windows: state.windows.filter((w) => w.id !== id),
     })),
 
+  closeAllWindows: () =>
+    set(() => ({
+      windows: [],
+    })),
+
   focusWindow: (id) =>
     set((state) => ({
       windows: state.windows.map((w) => ({
@@ -119,6 +126,13 @@ export const useWindowStore = create<WindowStore>((set) => ({
     set((state) => ({
       windows: state.windows.map((w) =>
         w.id === id ? { ...w, size, updatedAt: Date.now() } : w
+      ),
+    })),
+
+  renameWindow: (id, title) =>
+    set((state) => ({
+      windows: state.windows.map((w) =>
+        w.id === id ? { ...w, title } : w
       ),
     })),
 

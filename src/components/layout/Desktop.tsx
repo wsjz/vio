@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { WindowFrame } from '../window/WindowFrame';
 import { TaskBar } from './TaskBar';
 import { Launcher } from './Launcher';
+import { ContextMenu } from './ContextMenu';
 import { ParticleBackground } from '../effects/ParticleBackground';
 import { ScanlineOverlay } from '../effects/ScanlineOverlay';
 import { StartupScreen } from '../effects/StartupScreen';
@@ -30,6 +31,11 @@ export function Desktop() {
   const accent = theme.colors.accent;
   const [launcherVisible, setLauncherVisible] = useState(false);
   const [startupDone, setStartupDone] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number }>({
+    visible: false,
+    x: 0,
+    y: 0,
+  });
   const windowsRef = useRef(windows);
   windowsRef.current = windows;
 
@@ -92,6 +98,17 @@ export function Desktop() {
       setStartupDone(true);
     }, 2500);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Global: disable default context menu except on inputs
+  useEffect(() => {
+    const onCtx = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return;
+      e.preventDefault();
+    };
+    document.addEventListener('contextmenu', onCtx);
+    return () => document.removeEventListener('contextmenu', onCtx);
   }, []);
 
   const handleCreateWindow = useCallback((type: TerminalType) => {
@@ -232,6 +249,13 @@ export function Desktop() {
           const isInsideWindow = (e.target as HTMLElement).closest('[data-window-frame]') !== null;
           if (!isInsideWindow) blurAllWindows();
         }}
+        onContextMenu={(e) => {
+          const isInsideWindow = (e.target as HTMLElement).closest('[data-window-frame]') !== null;
+          if (!isInsideWindow) {
+            e.preventDefault();
+            setContextMenu({ visible: true, x: e.clientX, y: e.clientY });
+          }
+        }}
       >
         {windows.filter((w) => !w.isMinimized).map((win) => (
           <WindowFrame
@@ -258,6 +282,20 @@ export function Desktop() {
         windows={windows}
         onFocusWindow={focusWindow}
         onBlurAll={blurAllWindows}
+      />
+
+      {/* Context Menu */}
+      <ContextMenu
+        visible={contextMenu.visible}
+        x={contextMenu.x}
+        y={contextMenu.y}
+        items={[
+          { label: 'Arrange Windows', onClick: arrangeWindows },
+          { label: 'Close All', onClick: () => useWindowStore.getState().closeAllWindows() },
+          { label: 'Reload', onClick: () => window.location.reload() },
+        ]}
+        onClose={() => setContextMenu({ visible: false, x: 0, y: 0 })}
+        theme={theme}
       />
 
       {/* Startup Screen */}
