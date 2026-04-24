@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { WindowFrame } from '../window/WindowFrame';
 import { TaskBar } from './TaskBar';
 import { Launcher } from './Launcher';
+import { AppGrid } from './AppGrid';
 import { ContextMenu } from './ContextMenu';
 import { ParticleBackground } from '../effects/ParticleBackground';
 import { ScanlineOverlay } from '../effects/ScanlineOverlay';
@@ -31,6 +32,7 @@ export function Desktop() {
   const { theme, particleCount, scanlineIntensity, lowPowerMode } = useThemeStore();
   const accent = theme.colors.accent;
   const [launcherVisible, setLauncherVisible] = useState(false);
+  const [appGridVisible, setAppGridVisible] = useState(false);
   const [startupDone, setStartupDone] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number }>({
     visible: false,
@@ -127,10 +129,20 @@ export function Desktop() {
     setLauncherVisible((prev) => !prev);
   }, []);
 
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMod = e.ctrlKey || e.metaKey;
+
+      // AppGrid: Enter / Escape to close
+      if (appGridVisible) {
+        if (e.key === 'Enter' || e.key === 'Escape') {
+          e.preventDefault();
+          setAppGridVisible(false);
+        }
+        return;
+      }
 
       // Launcher toggle
       if (isMod && e.key === 't') {
@@ -139,9 +151,17 @@ export function Desktop() {
         return;
       }
 
-      // Close launcher
+      // AppGrid toggle
+      if (isMod && e.key === 'ArrowUp') {
+        e.preventDefault();
+        setAppGridVisible(true);
+        return;
+      }
+
+      // Close launcher / context menu
       if (e.key === 'Escape') {
         setLauncherVisible(false);
+        setContextMenu((prev) => ({ ...prev, visible: false }));
         return;
       }
 
@@ -221,7 +241,7 @@ export function Desktop() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [launcherVisible, closeWindow, toggleMinimize, toggleMaximize, focusWindow, createWindow, handleCreateWindow, arrangeWindows]);
+  }, [appGridVisible, launcherVisible, closeWindow, toggleMinimize, toggleMaximize, focusWindow, createWindow, handleCreateWindow, arrangeWindows]);
 
   return (
     <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: theme.colors.bgPrimary }}>
@@ -283,12 +303,20 @@ export function Desktop() {
         onClose={() => setLauncherVisible(false)}
       />
 
+      {/* AppGrid */}
+      <AppGrid
+        windows={windows}
+        visible={appGridVisible}
+        onClose={() => setAppGridVisible(false)}
+      />
+
       {/* TaskBar */}
       <TaskBar
         onToggleLauncher={handleToggleLauncher}
         windows={windows}
         onFocusWindow={focusWindow}
         onBlurAll={blurAllWindows}
+        onOpenAppGrid={() => setAppGridVisible(true)}
       />
 
       {/* Context Menu */}
@@ -297,6 +325,8 @@ export function Desktop() {
         x={contextMenu.x}
         y={contextMenu.y}
         items={[
+          { label: '⧉ Window Grid', onClick: () => setAppGridVisible(true) },
+          { label: '', onClick: () => {}, divider: true },
           { label: 'Arrange Windows', onClick: arrangeWindows },
           { label: 'Close All', onClick: () => useWindowStore.getState().closeAllWindows() },
           { label: 'Reload', onClick: () => window.location.reload() },

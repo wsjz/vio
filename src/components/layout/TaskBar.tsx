@@ -3,15 +3,17 @@ import type { WindowState, ThemeConfig } from '../../types';
 import { useWindowStore } from '../../core/window-manager/windowStore';
 import { useThemeStore } from '../../core/theme-engine/themeStore';
 import { TASKBAR_HEIGHT } from '../../core/constants';
+import { ContextMenu } from './ContextMenu';
 
 interface TaskBarProps {
   onToggleLauncher: () => void;
   windows: WindowState[];
   onFocusWindow: (id: string) => void;
   onBlurAll?: () => void;
+  onOpenAppGrid?: () => void;
 }
 
-export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll }: TaskBarProps) {
+export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll, onOpenAppGrid }: TaskBarProps) {
   const createWindow = useWindowStore((s) => s.createWindow);
   const closeWindow = useWindowStore((s) => s.closeWindow);
   const toggleMinimize = useWindowStore((s) => s.toggleMinimize);
@@ -29,6 +31,13 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll }:
     y: number;
     winId: string;
   }>({ visible: false, x: 0, y: 0, winId: '' });
+
+  // TaskBar blank-area context menu
+  const [taskbarMenu, setTaskbarMenu] = useState<{ visible: boolean; x: number; y: number }>({
+    visible: false,
+    x: 0,
+    y: 0,
+  });
 
   // Rename state
   const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
@@ -105,9 +114,20 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll }:
     e.preventDefault();
     e.stopPropagation();
     setCtxMenu({ visible: true, x: e.clientX, y: e.clientY, winId });
+    setTaskbarMenu((prev) => ({ ...prev, visible: false }));
   };
 
   const closeCtxMenu = () => setCtxMenu((prev) => ({ ...prev, visible: false }));
+
+  const handleTaskbarCtxMenu = (e: React.MouseEvent) => {
+    // Only trigger on the TaskBar container itself, not on child elements
+    if (e.target !== e.currentTarget) return;
+    e.preventDefault();
+    setTaskbarMenu({ visible: true, x: e.clientX, y: e.clientY });
+    setCtxMenu((prev) => ({ ...prev, visible: false }));
+  };
+
+  const closeTaskbarMenu = () => setTaskbarMenu((prev) => ({ ...prev, visible: false }));
 
   return (
     <div
@@ -130,6 +150,7 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll }:
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && onBlurAll) onBlurAll();
       }}
+      onContextMenu={handleTaskbarCtxMenu}
     >
       <div
         style={{
@@ -315,6 +336,21 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll }:
           theme={theme}
         />
       )}
+
+      {/* TaskBar blank-area context menu */}
+      {taskbarMenu.visible && (
+        <TaskBarContextMenu
+          x={taskbarMenu.x}
+          y={taskbarMenu.y}
+          onClose={closeTaskbarMenu}
+          onToggleLauncher={() => { onToggleLauncher(); closeTaskbarMenu(); }}
+          onArrange={() => { arrangeWindows(); closeTaskbarMenu(); }}
+          onCloseAll={() => { useWindowStore.getState().closeAllWindows(); closeTaskbarMenu(); }}
+          onOpenSettings={() => { createWindow('settings'); closeTaskbarMenu(); }}
+          onOpenAppGrid={() => { onOpenAppGrid?.(); closeTaskbarMenu(); }}
+          theme={theme}
+        />
+      )}
     </div>
   );
 }
@@ -440,6 +476,108 @@ interface WindowContextMenuProps {
   onCloseWindow: (id: string) => void;
   onRename: (id: string) => void;
   theme: ThemeConfig;
+}
+
+/* ─── TaskBar Blank-Area Context Menu ─── */
+interface TaskBarContextMenuProps {
+  x: number;
+  y: number;
+  onClose: () => void;
+  onToggleLauncher: () => void;
+  onArrange: () => void;
+  onCloseAll: () => void;
+  onOpenSettings: () => void;
+  onOpenAppGrid?: () => void;
+  theme: ThemeConfig;
+}
+
+function TaskBarContextMenu({ x, y, onClose, onToggleLauncher, onArrange, onCloseAll, onOpenSettings, onOpenAppGrid, theme }: TaskBarContextMenuProps) {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose();
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [onClose]);
+
+  const items = [
+    { label: '⊕ New Terminal', onClick: onToggleLauncher },
+    { label: '⧉ Window Grid', onClick: onOpenAppGrid || (() => {}) },
+    { label: '◉ Arrange Windows', onClick: onArrange },
+    { divider: true },
+    { label: '✕ Close All', onClick: onCloseAll },
+    { divider: true },
+    { label: '⚙ Settings', onClick: onOpenSettings },
+  ];
+
+  return (
+    <div
+      ref={menuRef}
+      style={{
+        position: 'fixed',
+        left: x,
+        bottom: 40,
+        zIndex: 9999,
+        minWidth: 160,
+        background: theme.colors.bgSecondary + 'f0',
+        backdropFilter: 'blur(16px)',
+        border: `1px solid ${theme.colors.borderDefault}`,
+        borderRadius: 6,
+        padding: '4px 0',
+        boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 16px ${theme.colors.accentGlow10}`,
+        fontFamily: theme.font.mono,
+        fontSize: 12,
+      }}
+    >
+      {items.map((item, i) =>
+        item.divider ? (
+          <div
+            key={i}
+            style={{
+              height: 1,
+              background: theme.colors.accentDim15,
+              margin: '4px 8px',
+            }}
+          />
+        ) : (
+          <button
+            key={i}
+            onClick={item.onClick}
+            style={{
+              display: 'block',
+              width: '100%',
+              padding: '6px 16px',
+              textAlign: 'left',
+              background: 'transparent',
+              border: 'none',
+              color: theme.colors.textPrimary,
+              fontFamily: theme.font.mono,
+              fontSize: 12,
+              cursor: 'default',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = theme.colors.accentGlow12;
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+            }}
+          >
+            {item.label}
+          </button>
+        )
+      )}
+    </div>
+  );
 }
 
 function WindowContextMenu({ x, y, winId, onClose, onFocus, onCloseWindow, onRename, theme }: WindowContextMenuProps) {

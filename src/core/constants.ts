@@ -36,3 +36,20 @@ export const NETWORK_SCAN_COUNT = 20;
 
 /** Ping timeout in seconds */
 export const NETWORK_SCAN_TIMEOUT = 1;
+
+// ============ APP GRID ============
+
+/** AppGrid card width in pixels */
+export const APPGRID_CARD_WIDTH = 240;
+
+/** AppGrid card height in pixels */
+export const APPGRID_CARD_HEIGHT = 180;
+
+/** AppGrid columns per page */
+export const APPGRID_COLS = 3;
+
+/** AppGrid rows per page */
+export const APPGRID_ROWS = 2;
+
+/** AppGrid max cards per page */
+export const APPGRID_PAGE_SIZE = APPGRID_COLS * APPGRID_ROWS;

@@ -58,6 +58,8 @@ interface WindowStore {
   toggleMinimize: (id: string) => void;
   toggleMaximize: (id: string) => void;
   arrangeWindows: () => void;
+  arrangeWindowsByOrder: (orderedIds: string[]) => void;
+  swapWindows: (idA: string, idB: string) => void;
   clearWindows: () => void;
   setWindows: (windows: WindowState[]) => void;
 }
@@ -185,6 +187,52 @@ export const useWindowStore = create<WindowStore>((set) => ({
             size: layout.size,
             isMinimized: false,
           };
+        }),
+      };
+    }),
+
+  arrangeWindowsByOrder: (orderedIds) =>
+    set((state) => {
+      const idToIndex = new Map(orderedIds.map((id, i) => [id, i]));
+      const sorted = [...state.windows].sort((a, b) => {
+        const ai = idToIndex.get(a.id) ?? Infinity;
+        const bi = idToIndex.get(b.id) ?? Infinity;
+        return ai - bi;
+      });
+      const layouts = computeArrangedLayout(
+        sorted,
+        window.innerWidth,
+        window.innerHeight - 36
+      );
+      const layoutMap = new Map(layouts.map((l) => [l.id, l]));
+      return {
+        windows: sorted.map((w) => {
+          const layout = layoutMap.get(w.id);
+          if (!layout || w.isMaximized) return w;
+          return {
+            ...w,
+            position: layout.position,
+            size: layout.size,
+            isMinimized: false,
+          };
+        }),
+      };
+    }),
+
+  swapWindows: (idA, idB) =>
+    set((state) => {
+      const idxA = state.windows.findIndex((w) => w.id === idA);
+      const idxB = state.windows.findIndex((w) => w.id === idB);
+      if (idxA === -1 || idxB === -1 || idxA === idxB) return state;
+
+      const winA = state.windows[idxA];
+      const winB = state.windows[idxB];
+
+      return {
+        windows: state.windows.map((w, i) => {
+          if (i === idxA) return { ...w, position: winB.position, size: winB.size };
+          if (i === idxB) return { ...w, position: winA.position, size: winA.size };
+          return w;
         }),
       };
     }),
