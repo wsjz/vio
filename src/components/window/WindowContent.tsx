@@ -14,7 +14,7 @@ import { OpenCLITerminal } from '../../terminals/opencli/OpenCLITerminal';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
 import { useThemeStore } from '../../core/theme-engine/themeStore';
 import { usePluginStore, type PluginContext } from '../../core/plugin-system';
-import { useWindowStore } from '../../core/window-manager/windowStore';
+import { useVioStore } from '../../core/stores/vioStore';
 import { useMemo } from 'react';
 
 interface WindowContentProps {
@@ -32,7 +32,7 @@ function TerminalWrapper({ children }: { children: React.ReactNode }) {
 export function WindowContent({ window }: WindowContentProps) {
   const { theme } = useThemeStore();
   const { getPlugin, createPipelinePort } = usePluginStore();
-  const { createWindow } = useWindowStore();
+  const { createWindow } = useVioStore();
 
   // Create plugin context for this window
   const pluginContext = useMemo((): PluginContext | undefined => {

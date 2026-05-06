@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { WindowState, ThemeConfig } from '../../types';
-import { useWindowStore } from '../../core/window-manager/windowStore';
+import { useVioStore } from '../../core/stores/vioStore';
 import { useThemeStore } from '../../core/theme-engine/themeStore';
 import { TASKBAR_HEIGHT } from '../../core/constants';
 import { ContextMenu } from './ContextMenu';
+import { WorkspaceIndicator } from './WorkspaceIndicator';
 
 interface TaskBarProps {
   onToggleLauncher: () => void;
@@ -14,11 +15,11 @@ interface TaskBarProps {
 }
 
 export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll, onOpenAppGrid }: TaskBarProps) {
-  const createWindow = useWindowStore((s) => s.createWindow);
-  const closeWindow = useWindowStore((s) => s.closeWindow);
-  const toggleMinimize = useWindowStore((s) => s.toggleMinimize);
-  const arrangeWindows = useWindowStore((s) => s.arrangeWindows);
-  const renameWindow = useWindowStore((s) => s.renameWindow);
+  const createWindow = useVioStore((s) => s.createWindow);
+  const closeWindow = useVioStore((s) => s.closeWindow);
+  const toggleMinimizeWindow = useVioStore((s) => s.toggleMinimizeWindow);
+  const arrangeWindows = useVioStore((s) => s.arrangeWindows);
+  const renameWindow = useVioStore((s) => s.renameWindow);
   const { theme } = useThemeStore();
   const timeRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -166,6 +167,8 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll, o
         VIO
       </div>
       <div style={{ width: 1, height: 18, background: accentDim, flexShrink: 0 }} />
+      <WorkspaceIndicator />
+      <div style={{ width: 1, height: 18, background: accentDim, flexShrink: 0 }} />
       <button
         onClick={onToggleLauncher}
         style={{
@@ -185,7 +188,7 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll, o
         ⊕ New
       </button>
       <button
-        onClick={arrangeWindows}
+        onClick={() => arrangeWindows()}
         title="Arrange Windows"
         style={{
           padding: '4px 10px',
@@ -252,7 +255,7 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll, o
             ) : (
               <button
                 onClick={() => {
-                  if (win.isMinimized) toggleMinimize(win.id);
+                  if (win.isMinimized) toggleMinimizeWindow(win.id);
                   onFocusWindow(win.id);
                 }}
                 onDoubleClick={() => setRenaming({ id: win.id, value: win.title })}
@@ -286,7 +289,7 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll, o
             windows={windows.slice(maxButtons - 1)}
             onSelect={(id) => {
               const win = windows.find((w) => w.id === id);
-              if (win?.isMinimized) toggleMinimize(id);
+              if (win?.isMinimized) toggleMinimizeWindow(id);
               onFocusWindow(id);
             }}
             onContextMenu={handleCtxMenu}
@@ -345,7 +348,7 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll, o
           onClose={closeTaskbarMenu}
           onToggleLauncher={() => { onToggleLauncher(); closeTaskbarMenu(); }}
           onArrange={() => { arrangeWindows(); closeTaskbarMenu(); }}
-          onCloseAll={() => { useWindowStore.getState().closeAllWindows(); closeTaskbarMenu(); }}
+          onCloseAll={() => { useVioStore.getState().closeAllWindows(); closeTaskbarMenu(); }}
           onOpenSettings={() => { createWindow('settings'); closeTaskbarMenu(); }}
           onOpenAppGrid={() => { onOpenAppGrid?.(); closeTaskbarMenu(); }}
           theme={theme}

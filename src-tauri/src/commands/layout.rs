@@ -149,3 +149,32 @@ pub fn get_layouts_directory() -> Result<String, String> {
     let dir = layouts_dir()?;
     Ok(dir.to_string_lossy().to_string())
 }
+
+#[tauri::command]
+pub fn save_workspace_layout(data: String) -> Result<(), String> {
+    let config_dir = dirs::config_dir()
+        .ok_or("Could not get config directory")?;
+    let vio_dir = config_dir.join("vio");
+    std::fs::create_dir_all(&vio_dir).map_err(|e| e.to_string())?;
+
+    let temp_path = vio_dir.join("workspace-layout.json.tmp");
+    let final_path = vio_dir.join("workspace-layout.json");
+
+    std::fs::write(&temp_path, data).map_err(|e| e.to_string())?;
+    std::fs::rename(&temp_path, &final_path).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn load_workspace_layout() -> Result<String, String> {
+    let config_dir = dirs::config_dir()
+        .ok_or("Could not get config directory")?;
+    let path = config_dir.join("vio").join("workspace-layout.json");
+
+    if !path.exists() {
+        return Err("No workspace layout saved".to_string());
+    }
+
+    std::fs::read_to_string(&path).map_err(|e| e.to_string())
+}

@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { WindowFrame } from '../window/WindowFrame';
 import { TaskBar } from './TaskBar';
 import { Launcher } from './Launcher';
@@ -7,12 +8,16 @@ import { ContextMenu } from './ContextMenu';
 import { ParticleBackground } from '../effects/ParticleBackground';
 import { ScanlineOverlay } from '../effects/ScanlineOverlay';
 import { StartupScreen } from '../effects/StartupScreen';
-import { useWindowStore } from '../../core/window-manager/windowStore';
+import { useVioStore } from '../../core/stores/vioStore';
+import { useUiStore } from '../../core/stores/uiStore';
 import { useThemeStore } from '../../core/theme-engine/themeStore';
-import { computeTiledLayout } from '../../core/window-manager/tileWindows';
-import { loadLayout, saveLayout } from '../../api/tauri';
+import { usePlatformStore } from '../../core/platform/platformStore';
+import { useKeyboard } from '../../hooks/useKeyboard';
+import { loadWorkspaceLayout, migrateMonitors, saveWorkspaceLayout } from '../../core/persistence/layoutPersistence';
+import { getMonitors } from '../../api/monitor';
+import { getPlatform } from '../../api/platform';
 import { TASKBAR_HEIGHT, STARTUP_DURATION, LAYOUT_SAVE_DEBOUNCE } from '../../core/constants';
-import type { TerminalType } from '../../types';
+import type { TerminalType } from '../../core/types';
 
 const IS_TAURI = typeof window !== 'undefined' && window.__TAURI_INTERNALS__ !== undefined;
 
@@ -28,88 +33,125 @@ const QUICK_LAUNCH: TerminalType[] = [
 ];
 
 export function Desktop() {
-  const { windows, createWindow, closeWindow, focusWindow, toggleMinimize, toggleMaximize, blurAllWindows, arrangeWindows } = useWindowStore();
+  const { monitors, createWindow, blurAllWindows, handleMonitorChange, setMonitors } = useVioStore();
   const { theme, particleCount, scanlineIntensity, lowPowerMode } = useThemeStore();
+  const { launcherVisible, appGridVisible, setLauncherVisible, setAppGridVisible } = useUiStore();
+  const setPlatform = usePlatformStore((s) => s.setPlatform);
   const accent = theme.colors.accent;
-  const [launcherVisible, setLauncherVisible] = useState(false);
-  const [appGridVisible, setAppGridVisible] = useState(false);
+
   const [startupDone, setStartupDone] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number }>({
     visible: false,
     x: 0,
     y: 0,
   });
-  const windowsRef = useRef(windows);
-  windowsRef.current = windows;
 
-  // Prevent duplicate window creation in React Strict Mode
-  const hasInitiated = useRef(false);
+  // Register keyboard shortcuts
+  useKeyboard();
 
-  // Load last-session layout on startup, fallback to tiled layout
+  // Detect platform
   useEffect(() => {
-    if (hasInitiated.current) return;
-    hasInitiated.current = true;
+    if (!IS_TAURI) {
+      const platform = navigator.platform.includes('Mac') ? 'macos' :
+                       navigator.platform.includes('Win') ? 'windows' : 'linux';
+      setPlatform(platform);
+      return;
+    }
 
-    const timer = setTimeout(() => {
+    getPlatform().then((p) => {
+      const platform = p === 'macos' ? 'macos' : p === 'windows' ? 'windows' : 'linux';
+      setPlatform(platform);
+    }).catch(() => {
+      setPlatform('unknown');
+    });
+  }, [setPlatform]);
+
+  // Load layout on startup
+  useEffect(() => {
+    const init = async () => {
       if (IS_TAURI) {
-        loadLayout('last-session')
-          .then((data) => {
-            data.windows.forEach((w) => {
-              createWindow(w.window_type as TerminalType, {}, {
-                position: { x: w.position.x, y: w.position.y },
-                size: { width: w.size.width, height: w.size.height },
-              });
-            });
-          })
-          .catch(() => {
-            // Fallback to tiled layout
-            const screenW = window.innerWidth;
-            const screenH = window.innerHeight - TASKBAR_HEIGHT;
-            const layouts = computeTiledLayout(screenW, screenH);
-            layouts.forEach((layout) => {
-              createWindow(layout.type, {}, {
-                position: layout.position,
-                size: layout.size,
-              });
-            });
-          });
+        try {
+          const monitorInfos = await getMonitors();
+          const saved = await loadWorkspaceLayout();
+
+          if (saved) {
+            const migrated = migrateMonitors(saved, monitorInfos.map((m) => ({
+              id: m.id,
+              bounds: m.bounds,
+              dpi: m.dpi,
+              isPrimary: m.is_primary,
+            })));
+            setMonitors(migrated);
+          } else {
+            handleMonitorChange(monitorInfos.map((m) => ({
+              id: m.id,
+              bounds: m.bounds,
+              dpi: m.dpi,
+              isPrimary: m.is_primary,
+            })));
+          }
+        } catch {
+          // Fallback: single monitor
+          handleMonitorChange([{
+            id: 'fallback',
+            bounds: { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight },
+            dpi: 1,
+            isPrimary: true,
+          }]);
+        }
       } else {
-        const screenW = window.innerWidth;
-        const screenH = window.innerHeight - TASKBAR_HEIGHT;
-        const layouts = computeTiledLayout(screenW, screenH);
-        layouts.forEach((layout) => {
-          createWindow(layout.type, {}, {
-            position: layout.position,
-            size: layout.size,
-          });
-        });
+        handleMonitorChange([{
+          id: 'fallback',
+          bounds: { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight },
+          dpi: 1,
+          isPrimary: true,
+        }]);
       }
-    }, STARTUP_DURATION + 300);
-    return () => clearTimeout(timer);
-  }, [createWindow]);
+    };
 
-  // Auto-save last-session layout when windows change (debounced)
+    const timer = setTimeout(init, STARTUP_DURATION + 300);
+    return () => clearTimeout(timer);
+  }, [handleMonitorChange, setMonitors]);
+
+  // Auto-save layout
   useEffect(() => {
-    if (!IS_TAURI || windows.length === 0) return;
+    if (!IS_TAURI || monitors.length === 0) return;
+
     const timer = setTimeout(() => {
-      const layoutWindows = windows.map((w) => ({
-        window_type: w.type,
-        position: { x: w.position.x, y: w.position.y },
-        size: { width: w.size.width, height: w.size.height },
-      }));
-      saveLayout('last-session', 'Auto-saved session', layoutWindows).catch(() => {});
+      saveWorkspaceLayout(monitors).catch(() => {});
     }, LAYOUT_SAVE_DEBOUNCE);
-    return () => clearTimeout(timer);
-  }, [windows]);
 
+    return () => clearTimeout(timer);
+  }, [monitors]);
+
+  // Startup timer
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setStartupDone(true);
-    }, STARTUP_DURATION);
+    const timer = setTimeout(() => setStartupDone(true), STARTUP_DURATION);
     return () => clearTimeout(timer);
   }, []);
 
-  // Global: disable default context menu except on inputs
+  // Monitor change polling (every 5 seconds in Tauri)
+  useEffect(() => {
+    if (!IS_TAURI) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const current = await getMonitors();
+        handleMonitorChange(current.map((m) => ({
+          id: m.id,
+          bounds: m.bounds,
+          dpi: m.dpi,
+          isPrimary: m.is_primary,
+        })));
+      } catch {
+        // Ignore polling errors
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [handleMonitorChange]);
+
+  // Global context menu prevention
   useEffect(() => {
     const onCtx = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
@@ -123,125 +165,51 @@ export function Desktop() {
   const handleCreateWindow = useCallback((type: TerminalType) => {
     createWindow(type);
     setLauncherVisible(false);
-  }, [createWindow]);
+  }, [createWindow, setLauncherVisible]);
 
   const handleToggleLauncher = useCallback(() => {
-    setLauncherVisible((prev) => !prev);
+    useUiStore.getState().toggleLauncher();
   }, []);
 
+  const handleBlurAll = useCallback(() => {
+    blurAllWindows();
+  }, [blurAllWindows]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isMod = e.ctrlKey || e.metaKey;
+  // Get all visible containers across all active workspaces
+  const visibleContainers = monitors.flatMap((monitor) =>
+    monitor.workspaces
+      .filter((w) => w.isActive)
+      .flatMap((workspace) =>
+        workspace.containers.filter((c) => !c.windows.every((w) => w.isMinimized))
+      )
+  );
 
-      // AppGrid: Enter / Escape to close
-      if (appGridVisible) {
-        if (e.key === 'Enter' || e.key === 'Escape') {
-          e.preventDefault();
-          setAppGridVisible(false);
-        }
-        return;
-      }
+  // Build legacy WindowState list for TaskBar compatibility
+  const allWindows = monitors.flatMap((monitor) =>
+    monitor.workspaces.flatMap((workspace) =>
+      workspace.containers.flatMap((container) => {
+        const activeWindow = container.windows.find((w) => w.id === container.activeWindowId);
+        if (!activeWindow) return [];
+        return [{
+          id: activeWindow.id,
+          type: activeWindow.type,
+          title: activeWindow.title,
+          position: container.position,
+          size: container.size,
+          isMinimized: activeWindow.isMinimized,
+          isMaximized: !!container.snapRegion,
+          isFocused: activeWindow.isFocused,
+          isVisible: true,
+          zIndex: container.zIndex,
+          config: activeWindow.config,
+          createdAt: activeWindow.createdAt,
+          updatedAt: activeWindow.updatedAt,
+        }];
+      })
+    )
+  );
 
-      // Launcher toggle
-      if (isMod && e.key === 't') {
-        e.preventDefault();
-        setLauncherVisible((prev) => !prev);
-        return;
-      }
-
-      // AppGrid toggle
-      if (isMod && e.key === 'ArrowUp') {
-        e.preventDefault();
-        setAppGridVisible(true);
-        return;
-      }
-
-      // Close launcher / context menu
-      if (e.key === 'Escape') {
-        setLauncherVisible(false);
-        setContextMenu((prev) => ({ ...prev, visible: false }));
-        return;
-      }
-
-      if (launcherVisible) {
-        // Number keys to select from launcher
-        const num = parseInt(e.key, 10);
-        if (num >= 1 && num <= QUICK_LAUNCH.length) {
-          e.preventDefault();
-          handleCreateWindow(QUICK_LAUNCH[num - 1]);
-        }
-        return;
-      }
-
-      const currentWindows = windowsRef.current;
-      const focusedWin = currentWindows.find((w) => w.isFocused);
-
-      // Close focused window
-      if (isMod && e.key === 'w') {
-        e.preventDefault();
-        if (focusedWin) closeWindow(focusedWin.id);
-        return;
-      }
-
-      // Minimize focused window
-      if (isMod && e.key === 'm' && !e.shiftKey) {
-        e.preventDefault();
-        if (focusedWin) toggleMinimize(focusedWin.id);
-        return;
-      }
-
-      // Maximize/restore focused window
-      if (isMod && e.shiftKey && e.key === 'M') {
-        e.preventDefault();
-        if (focusedWin) toggleMaximize(focusedWin.id);
-        return;
-      }
-
-      // Cycle windows forward
-      if (isMod && e.key === 'Tab' && !e.shiftKey) {
-        e.preventDefault();
-        const visible = currentWindows.filter((w) => !w.isMinimized);
-        if (visible.length === 0) return;
-        const idx = visible.findIndex((w) => w.id === focusedWin?.id);
-        const next = visible[(idx + 1) % visible.length];
-        focusWindow(next.id);
-        return;
-      }
-
-      // Cycle windows backward
-      if (isMod && e.shiftKey && e.key === 'Tab') {
-        e.preventDefault();
-        const visible = currentWindows.filter((w) => !w.isMinimized);
-        if (visible.length === 0) return;
-        const idx = visible.findIndex((w) => w.id === focusedWin?.id);
-        const prev = visible[(idx - 1 + visible.length) % visible.length];
-        focusWindow(prev.id);
-        return;
-      }
-
-      // Arrange all windows
-      if (isMod && e.shiftKey && e.key === 'A') {
-        e.preventDefault();
-        arrangeWindows();
-        return;
-      }
-
-      // Quick launch terminals via Ctrl/Cmd + 1~9
-      if (isMod && !e.shiftKey) {
-        const num = parseInt(e.key, 10);
-        if (num >= 1 && num <= QUICK_LAUNCH.length) {
-          e.preventDefault();
-          createWindow(QUICK_LAUNCH[num - 1]);
-          return;
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [appGridVisible, launcherVisible, closeWindow, toggleMinimize, toggleMaximize, focusWindow, createWindow, handleCreateWindow, arrangeWindows]);
+  const focusWindow = useVioStore((s) => s.focusWindow);
 
   return (
     <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: theme.colors.bgPrimary }}>
@@ -274,7 +242,7 @@ export function Desktop() {
         style={{ position: 'fixed', inset: 0, zIndex: 10 }}
         onMouseDown={(e) => {
           const isInsideWindow = (e.target as HTMLElement).closest('[data-window-frame]') !== null;
-          if (!isInsideWindow) blurAllWindows();
+          if (!isInsideWindow) handleBlurAll();
         }}
         onContextMenu={(e) => {
           const isInsideWindow = (e.target as HTMLElement).closest('[data-window-frame]') !== null;
@@ -284,16 +252,14 @@ export function Desktop() {
           }
         }}
       >
-        {windows.filter((w) => !w.isMinimized).map((win) => (
-          <WindowFrame
-            key={win.id}
-            window={win}
-            onFocus={() => focusWindow(win.id)}
-            onClose={() => closeWindow(win.id)}
-            onMinimize={() => toggleMinimize(win.id)}
-            onMaximize={() => toggleMaximize(win.id)}
-          />
-        ))}
+        <AnimatePresence>
+          {visibleContainers.map((container) => (
+            <WindowFrame
+              key={container.id}
+              container={container}
+            />
+          ))}
+        </AnimatePresence>
       </div>
 
       {/* Launcher */}
@@ -305,7 +271,6 @@ export function Desktop() {
 
       {/* AppGrid */}
       <AppGrid
-        windows={windows}
         visible={appGridVisible}
         onClose={() => setAppGridVisible(false)}
       />
@@ -313,9 +278,9 @@ export function Desktop() {
       {/* TaskBar */}
       <TaskBar
         onToggleLauncher={handleToggleLauncher}
-        windows={windows}
+        windows={allWindows as unknown as import('../../types').WindowState[]}
         onFocusWindow={focusWindow}
-        onBlurAll={blurAllWindows}
+        onBlurAll={handleBlurAll}
         onOpenAppGrid={() => setAppGridVisible(true)}
       />
 
@@ -327,8 +292,8 @@ export function Desktop() {
         items={[
           { label: '⧉ Window Grid', onClick: () => setAppGridVisible(true) },
           { label: '', onClick: () => {}, divider: true },
-          { label: 'Arrange Windows', onClick: arrangeWindows },
-          { label: 'Close All', onClick: () => useWindowStore.getState().closeAllWindows() },
+          { label: 'Arrange Windows', onClick: () => useVioStore.getState().arrangeWindows() },
+          { label: 'Close All', onClick: () => useVioStore.getState().closeAllWindows() },
           { label: 'Reload', onClick: () => window.location.reload() },
         ]}
         onClose={() => setContextMenu({ visible: false, x: 0, y: 0 })}
@@ -339,7 +304,7 @@ export function Desktop() {
       {!startupDone && <StartupScreen visible={true} />}
 
       {/* Hint when no windows open */}
-      {startupDone && windows.length === 0 && (
+      {startupDone && visibleContainers.length === 0 && (
         <div
           style={{
             position: 'fixed',
@@ -372,7 +337,7 @@ export function Desktop() {
                 fontFamily: theme.font.mono,
               }}
             >
-              Press {navigator.platform.includes('Mac') ? 'Cmd' : 'Ctrl'}+T to open a terminal
+              Press {usePlatformStore.getState().isMac ? 'Cmd' : 'Ctrl'}+T to open a terminal
             </div>
           </div>
         </div>

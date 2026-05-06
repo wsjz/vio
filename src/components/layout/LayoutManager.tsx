@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useThemeStore } from '../../core/theme-engine/themeStore';
-import { useWindowStore } from '../../core/window-manager/windowStore';
+import { useVioStore } from '../../core/stores/vioStore';
 import {
   saveLayout,
   loadLayout,
@@ -15,7 +15,7 @@ import type { TerminalType } from '../../types';
 
 export function LayoutManager() {
   const { theme } = useThemeStore();
-  const { windows, createWindow, clearWindows } = useWindowStore();
+  const { monitors, createWindow, closeAllWindows } = useVioStore();
   const [layouts, setLayouts] = useState<LayoutSummary[]>([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -44,12 +44,19 @@ export function LayoutManager() {
     if (!name.trim()) return;
     setLoading(true);
     try {
-      const layoutWindows = windows.map((w) => ({
-        window_type: w.type,
-        position: { x: w.position.x, y: w.position.y },
-        size: { width: w.size.width, height: w.size.height },
-      }));
-      await saveLayout(name.trim(), description.trim(), layoutWindows);
+      // Flatten all windows from all monitors/workspaces/containers
+      const allWindows = monitors.flatMap((m) =>
+        m.workspaces.flatMap((w) =>
+          w.containers.flatMap((c) =>
+            c.windows.map((win) => ({
+              window_type: win.type,
+              position: { x: c.position.x, y: c.position.y },
+              size: { width: c.size.width, height: c.size.height },
+            }))
+          )
+        )
+      );
+      await saveLayout(name.trim(), description.trim(), allWindows);
       showMsg(`Layout "${name.trim()}" saved`);
       setName('');
       setDescription('');
@@ -65,14 +72,11 @@ export function LayoutManager() {
     setLoading(true);
     try {
       const data: LayoutData = await loadLayout(layoutName);
-      clearWindows();
+      closeAllWindows();
       // Delay slightly to let clearWindows render
       setTimeout(() => {
         data.windows.forEach((w) => {
-          createWindow(w.window_type as TerminalType, {}, {
-            position: { x: w.position.x, y: w.position.y },
-            size: { width: w.size.width, height: w.size.height },
-          });
+          createWindow(w.window_type as TerminalType);
         });
         showMsg(`Layout "${layoutName}" loaded`);
       }, 50);

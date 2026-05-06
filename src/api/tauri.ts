@@ -187,3 +187,13 @@ export async function importLayout(filePath: string): Promise<LayoutSummary> {
 export async function getLayoutsDirectory(): Promise<string> {
   return invoke('get_layouts_directory');
 }
+
+// ===== Workspace Layout Persistence =====
+
+export async function saveWorkspaceLayout(data: string): Promise<void> {
+  return invoke('save_workspace_layout', { data });
+}
+
+export async function loadWorkspaceLayout(): Promise<string> {
+  return invoke('load_workspace_layout');
+}

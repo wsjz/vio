@@ -7,6 +7,8 @@ use commands::network::{get_network_info, scan_network};
 use commands::log::get_system_logs;
 use commands::layout::{save_layout, load_layout, list_layouts, delete_layout, export_layout, import_layout, get_layouts_directory};
 use commands::opencli::{check_opencli, install_opencli, pick_opencli_path};
+use commands::monitor::get_monitors;
+use commands::platform::get_platform;
 use std::sync::Mutex;
 use sysinfo::System;
 
@@ -51,6 +53,8 @@ pub fn run() {
       check_opencli,
       install_opencli,
       pick_opencli_path,
+      get_monitors,
+      get_platform,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

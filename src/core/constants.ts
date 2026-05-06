@@ -53,3 +53,28 @@ export const APPGRID_ROWS = 2;
 
 /** AppGrid max cards per page */
 export const APPGRID_PAGE_SIZE = APPGRID_COLS * APPGRID_ROWS;
+
+// ============ WORKSPACE ============
+
+/** Default number of workspaces per monitor */
+export const DEFAULT_WORKSPACE_COUNT = 3;
+
+/** Default workspace names */
+export const DEFAULT_WORKSPACE_NAMES = ['Alpha', 'Beta', 'Gamma'];
+
+// ============ SNAP ============
+
+/** Distance from screen edge to trigger snap (px) */
+export const SNAP_TRIGGER_DISTANCE = 20;
+
+/** Snap region definitions for geometry calculations */
+export const SNAP_REGIONS = [
+  'left-half',
+  'right-half',
+  'top-half',
+  'bottom-half',
+  'top-left',
+  'top-right',
+  'bottom-left',
+  'bottom-right',
+] as const;

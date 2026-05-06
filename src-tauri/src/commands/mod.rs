@@ -5,3 +5,5 @@ pub mod network;
 pub mod log;
 pub mod layout;
 pub mod opencli;
+pub mod monitor;
+pub mod platform;

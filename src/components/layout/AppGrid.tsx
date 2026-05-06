@@ -1,27 +1,44 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import type { WindowState } from '../../types';
 import { useThemeStore } from '../../core/theme-engine/themeStore';
-import { useWindowStore } from '../../core/window-manager/windowStore';
+import { useVioStore } from '../../core/stores/vioStore';
 
 interface AppGridProps {
-  windows: WindowState[];
   visible: boolean;
   onClose: () => void;
 }
 
-export function AppGrid({ windows, visible, onClose }: AppGridProps) {
+const CARD_W = 280;
+const CARD_H = 200;
+const GAP = 16;
+const TOP_OFFSET = 80;
+const BOTTOM_OFFSET = 80;
+
+export function AppGrid({ visible, onClose }: AppGridProps) {
   const { theme } = useThemeStore();
-  const arrangeWindowsByOrder = useWindowStore((s) => s.arrangeWindowsByOrder);
+  const { monitors, switchWorkspace, focusWindow } = useVioStore();
+
+  // Get all visible containers from active workspaces
+  const containers = monitors.flatMap((m) =>
+    m.workspaces
+      .filter((w) => w.isActive)
+      .flatMap((w) =>
+        w.containers
+          .filter((c) => !c.windows.every((win) => win.isMinimized))
+          .map((c) => ({ ...c, workspaceId: w.id, monitorId: m.id }))
+      )
+  );
 
   const [order, setOrder] = useState<string[]>([]);
 
   useEffect(() => {
-    if (visible) setOrder(windows.map((w) => w.id));
-  }, [visible, windows]);
+    if (visible) setOrder(containers.map((c) => c.id));
+  }, [visible, containers.length]);
 
   const dragRef = useRef<{
     fromIdx: number;
     ghost: HTMLDivElement;
+    startX: number;
+    startY: number;
     offsetX: number;
     offsetY: number;
   } | null>(null);
@@ -29,6 +46,7 @@ export function AppGrid({ windows, visible, onClose }: AppGridProps) {
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
 
+  // Keyboard: Esc/Enter to close
   useEffect(() => {
     if (!visible) return;
     const onKey = (e: KeyboardEvent) => {
@@ -38,22 +56,28 @@ export function AppGrid({ windows, visible, onClose }: AppGridProps) {
     return () => document.removeEventListener('keydown', onKey);
   }, [visible, onClose]);
 
-  const winMap = new Map(windows.map((w) => [w.id, w]));
+  // Compute grid layout
+  const gridCols = Math.max(1, Math.floor((window.innerWidth - GAP * 2) / (CARD_W + GAP)));
+  const gridRows = Math.max(1, Math.floor((window.innerHeight - TOP_OFFSET - BOTTOM_OFFSET) / (CARD_H + GAP)));
+  const perPage = gridCols * gridRows;
+  const totalPages = Math.max(1, Math.ceil(order.length / perPage));
+  const [page, setPage] = useState(0);
+  const currentPage = Math.min(page, totalPages - 1);
+  const pageItems = order.slice(currentPage * perPage, (currentPage + 1) * perPage);
+
+  const containerMap = new Map(containers.map((c) => [c.id, c]));
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent, idx: number) => {
       e.preventDefault();
       e.stopPropagation();
 
-      const win = winMap.get(order[idx]);
-      if (!win) return;
+      const containerId = pageItems[idx];
+      const container = containerMap.get(containerId);
+      if (!container) return;
 
-      const rect = {
-        left: win.position.x,
-        top: win.position.y,
-        width: win.size.width,
-        height: win.size.height,
-      };
+      const target = e.currentTarget as HTMLElement;
+      const rect = target.getBoundingClientRect();
 
       const ghost = document.createElement('div');
       ghost.style.cssText = `
@@ -63,13 +87,13 @@ export function AppGrid({ windows, visible, onClose }: AppGridProps) {
         width: ${rect.width}px;
         height: ${rect.height}px;
         z-index: 9999;
-        opacity: 0.9;
+        opacity: 0.85;
         pointer-events: none;
         transform: scale(1.05);
         transition: none;
         border-radius: 8px;
-        box-shadow: 0 0 30px ${theme.colors.accentGlow30};
-        border: 1px solid ${theme.colors.accent};
+        box-shadow: 0 0 40px ${theme.colors.accentGlow30};
+        border: 2px solid ${theme.colors.accent};
         background: ${theme.colors.bgSecondary + 'ee'};
         display: flex;
         flex-direction: column;
@@ -79,10 +103,11 @@ export function AppGrid({ windows, visible, onClose }: AppGridProps) {
         cursor: grabbing;
       `;
 
+      const activeWin = container.windows.find((w) => w.id === container.activeWindowId) || container.windows[0];
       ghost.innerHTML = `
-        <div style="width:44px;height:44px;border-radius:12px;background:${theme.colors.accentGlow10};display:flex;align-items:center;justify-content:center;font-size:22px;color:${theme.colors.accent};font-family:${theme.font.mono};">${getTypeIcon(win.type)}</div>
-        <div style="font-size:12px;font-weight:500;color:${theme.colors.textPrimary};font-family:${theme.font.ui};text-align:center;max-width:${rect.width - 40}px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${win.title}</div>
-        <div style="font-size:10px;color:${theme.colors.textTertiary};font-family:${theme.font.mono};letter-spacing:1px;text-transform:uppercase;">${win.type}</div>
+        <div style="width:44px;height:44px;border-radius:12px;background:${theme.colors.accentGlow10};display:flex;align-items:center;justify-content:center;font-size:22px;color:${theme.colors.accent};font-family:${theme.font.mono};">${getTypeIcon(activeWin?.type || '')}</div>
+        <div style="font-size:12px;font-weight:500;color:${theme.colors.textPrimary};font-family:${theme.font.ui};text-align:center;max-width:${rect.width - 40}px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${activeWin?.title || ''}</div>
+        <div style="font-size:10px;color:${theme.colors.textTertiary};font-family:${theme.font.mono};letter-spacing:1px;text-transform:uppercase;">${activeWin?.type || ''}</div>
       `;
 
       document.body.appendChild(ghost);
@@ -90,6 +115,8 @@ export function AppGrid({ windows, visible, onClose }: AppGridProps) {
       dragRef.current = {
         fromIdx: idx,
         ghost,
+        startX: rect.left,
+        startY: rect.top,
         offsetX: e.clientX - rect.left,
         offsetY: e.clientY - rect.top,
       };
@@ -102,20 +129,20 @@ export function AppGrid({ windows, visible, onClose }: AppGridProps) {
         d.ghost.style.left = `${ev.clientX - d.offsetX}px`;
         d.ghost.style.top = `${ev.clientY - d.offsetY}px`;
 
-        // Find nearest window slot by center distance
+        // Find nearest slot by center distance
         let bestIdx = idx;
         let bestDist = Infinity;
-        for (let i = 0; i < order.length; i++) {
-          const w = winMap.get(order[i]);
-          if (!w) continue;
-          const cx = w.position.x + w.size.width / 2;
-          const cy = w.position.y + w.size.height / 2;
+        const slots = document.querySelectorAll('[data-grid-slot]');
+        slots.forEach((slot, i) => {
+          const r = slot.getBoundingClientRect();
+          const cx = r.left + r.width / 2;
+          const cy = r.top + r.height / 2;
           const dist = Math.hypot(ev.clientX - cx, ev.clientY - cy);
           if (dist < bestDist) {
             bestDist = dist;
             bestIdx = i;
           }
-        }
+        });
         if (bestIdx !== dropIdx) setDropIdx(bestIdx);
       };
 
@@ -128,11 +155,16 @@ export function AppGrid({ windows, visible, onClose }: AppGridProps) {
         const to = dropIdx ?? from;
         if (from !== to) {
           setOrder((prev) => {
-            const next = [...prev];
-            const [moved] = next.splice(from, 1);
-            next.splice(to, 0, moved);
-            // Apply new order as tiled layout
-            requestAnimationFrame(() => arrangeWindowsByOrder(next));
+            const pageStart = currentPage * perPage;
+            const pageEnd = Math.min(pageStart + perPage, prev.length);
+            const pageOrder = prev.slice(pageStart, pageEnd);
+            const [moved] = pageOrder.splice(from, 1);
+            pageOrder.splice(to, 0, moved);
+            const next = [
+              ...prev.slice(0, pageStart),
+              ...pageOrder,
+              ...prev.slice(pageEnd),
+            ];
             return next;
           });
         }
@@ -147,8 +179,19 @@ export function AppGrid({ windows, visible, onClose }: AppGridProps) {
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
     },
-    [dropIdx, order, arrangeWindowsByOrder, theme, winMap]
+    [dropIdx, pageItems, containerMap, theme, currentPage, perPage]
   );
+
+  const handleClickCard = (containerId: string) => {
+    const container = containerMap.get(containerId);
+    if (!container) return;
+    // Switch to the workspace containing this container
+    switchWorkspace(container.monitorId, container.workspaceId);
+    // Focus the active window in the container
+    const activeWin = container.windows.find((w) => w.id === container.activeWindowId);
+    if (activeWin) focusWindow(activeWin.id);
+    onClose();
+  };
 
   if (!visible) return null;
 
@@ -158,6 +201,8 @@ export function AppGrid({ windows, visible, onClose }: AppGridProps) {
         position: 'fixed',
         inset: 0,
         zIndex: 100,
+        background: theme.colors.bgPrimary + 'ee',
+        backdropFilter: 'blur(8px)',
       }}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -167,7 +212,7 @@ export function AppGrid({ windows, visible, onClose }: AppGridProps) {
       <div
         style={{
           position: 'fixed',
-          top: 40,
+          top: 24,
           left: 0,
           right: 0,
           textAlign: 'center',
@@ -180,8 +225,205 @@ export function AppGrid({ windows, visible, onClose }: AppGridProps) {
           pointerEvents: 'none',
         }}
       >
-        Window Grid — Drag to reorder
+        Window Grid — Drag to reorder · Click to focus
       </div>
+
+      {/* Cards grid */}
+      <div
+        style={{
+          position: 'fixed',
+          top: TOP_OFFSET,
+          left: 0,
+          right: 0,
+          bottom: BOTTOM_OFFSET,
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignContent: 'flex-start',
+          justifyContent: 'center',
+          gap: GAP,
+          padding: GAP,
+          overflow: 'auto',
+        }}
+      >
+        {pageItems.map((containerId, i) => {
+          const container = containerMap.get(containerId);
+          if (!container) return null;
+
+          const activeWin = container.windows.find((w) => w.id === container.activeWindowId) || container.windows[0];
+          const isDragged = draggingIdx === i;
+          const isDropTarget = draggingIdx !== null && dropIdx === i && i !== draggingIdx;
+
+          if (isDragged) {
+            return (
+              <div
+                key={`ph-${containerId}`}
+                data-grid-slot
+                style={{
+                  width: CARD_W,
+                  height: CARD_H,
+                  borderRadius: 8,
+                  border: `2px dashed ${theme.colors.accentDim}`,
+                  background: 'transparent',
+                  pointerEvents: 'none',
+                  flexShrink: 0,
+                }}
+              />
+            );
+          }
+
+          if (isDropTarget) {
+            return (
+              <div
+                key={`target-${containerId}`}
+                data-grid-slot
+                style={{
+                  width: CARD_W,
+                  height: CARD_H,
+                  borderRadius: 8,
+                  border: `2px solid ${theme.colors.accent}`,
+                  background: theme.colors.accentGlow06,
+                  boxShadow: `0 0 20px ${theme.colors.accentGlow15}`,
+                  pointerEvents: 'none',
+                  flexShrink: 0,
+                }}
+              />
+            );
+          }
+
+          return (
+            <div
+              key={containerId}
+              data-grid-slot
+              onMouseDown={(e) => handleMouseDown(e, i)}
+              onClick={(e) => {
+                // Only handle click if not dragging
+                if (draggingIdx === null) {
+                  handleClickCard(containerId);
+                }
+              }}
+              style={{
+                width: CARD_W,
+                height: CARD_H,
+                borderRadius: 8,
+                border: `1px solid ${theme.colors.accentDim}`,
+                background: theme.colors.bgSecondary + '66',
+                backdropFilter: 'blur(4px)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                cursor: 'grab',
+                userSelect: 'none',
+                transition: 'box-shadow 0.2s, border-color 0.2s, background 0.2s',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                flexShrink: 0,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = theme.colors.accentDim50;
+                e.currentTarget.style.boxShadow = `0 0 16px ${theme.colors.accentGlow20}`;
+                e.currentTarget.style.background = theme.colors.bgSecondary + 'aa';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = theme.colors.accentDim;
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.4)';
+                e.currentTarget.style.background = theme.colors.bgSecondary + '66';
+              }}
+            >
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  background: theme.colors.accentGlow10,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 20,
+                  color: theme.colors.accent,
+                  fontFamily: theme.font.mono,
+                }}
+              >
+                {getTypeIcon(activeWin?.type || '')}
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: theme.colors.textPrimary,
+                  fontFamily: theme.font.ui,
+                  textAlign: 'center',
+                  maxWidth: CARD_W - 32,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {activeWin?.title || 'Untitled'}
+              </div>
+              <div
+                style={{
+                  fontSize: 9,
+                  color: theme.colors.textTertiary,
+                  fontFamily: theme.font.mono,
+                  letterSpacing: 1,
+                  textTransform: 'uppercase',
+                }}
+              >
+                {activeWin?.type || ''}
+              </div>
+              {container.windows.length > 1 && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    fontSize: 10,
+                    color: theme.colors.accent,
+                    background: theme.colors.accentGlow10,
+                    padding: '2px 6px',
+                    borderRadius: 4,
+                    fontFamily: theme.font.mono,
+                  }}
+                >
+                  {container.windows.length} tabs
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Pagination dots */}
+      {totalPages > 1 && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 40,
+            left: 0,
+            right: 0,
+            display: 'flex',
+            justifyContent: 'center',
+            gap: 8,
+          }}
+        >
+          {Array.from({ length: totalPages }).map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setPage(i)}
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                border: 'none',
+                background: i === currentPage ? theme.colors.accent : theme.colors.accentDim,
+                cursor: 'default',
+                transition: 'background 0.2s',
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Done button */}
       <button
@@ -189,9 +431,8 @@ export function AppGrid({ windows, visible, onClose }: AppGridProps) {
         style={{
           position: 'fixed',
           bottom: 60,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          padding: '8px 32px',
+          right: 40,
+          padding: '8px 24px',
           background: theme.colors.bgSecondary + 'ee',
           border: `1px solid ${theme.colors.accentDim}`,
           borderRadius: 4,
@@ -209,139 +450,8 @@ export function AppGrid({ windows, visible, onClose }: AppGridProps) {
           e.currentTarget.style.background = theme.colors.bgSecondary + 'ee';
         }}
       >
-        Done (Esc / Enter)
+        Done (Esc)
       </button>
-
-      {/* Slots — positioned over each window */}
-      {order.map((id, i) => {
-        const win = winMap.get(id);
-        if (!win) return null;
-
-        const isDragged = draggingIdx === i;
-        const isDropTarget = draggingIdx !== null && dropIdx === i && i !== draggingIdx;
-
-        if (isDragged) {
-          return (
-            <div
-              key={`ph-${id}`}
-              data-grid-slot
-              style={{
-                position: 'absolute',
-                left: win.position.x,
-                top: win.position.y,
-                width: win.size.width,
-                height: win.size.height,
-                borderRadius: 8,
-                border: `2px dashed ${theme.colors.accentDim}`,
-                background: 'transparent',
-                pointerEvents: 'none',
-              }}
-            />
-          );
-        }
-
-        if (isDropTarget) {
-          return (
-            <div
-              key={`target-${id}`}
-              data-grid-slot
-              style={{
-                position: 'absolute',
-                left: win.position.x,
-                top: win.position.y,
-                width: win.size.width,
-                height: win.size.height,
-                borderRadius: 8,
-                border: `2px solid ${theme.colors.accent}`,
-                background: theme.colors.accentGlow06,
-                boxShadow: `0 0 20px ${theme.colors.accentGlow15}`,
-                pointerEvents: 'none',
-              }}
-            />
-          );
-        }
-
-        return (
-          <div
-            key={id}
-            data-grid-slot
-            onMouseDown={(e) => handleMouseDown(e, i)}
-            style={{
-              position: 'absolute',
-              left: win.position.x,
-              top: win.position.y,
-              width: win.size.width,
-              height: win.size.height,
-              borderRadius: 8,
-              border: `1px solid ${theme.colors.accentDim}`,
-              background: theme.colors.bgSecondary + '66',
-              backdropFilter: 'blur(4px)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              cursor: 'grab',
-              userSelect: 'none',
-              transition: 'box-shadow 0.2s, border-color 0.2s',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = theme.colors.accentDim50;
-              e.currentTarget.style.boxShadow = `0 0 16px ${theme.colors.accentGlow20}`;
-              e.currentTarget.style.background = theme.colors.bgSecondary + 'aa';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = theme.colors.accentDim;
-              e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.4)';
-              e.currentTarget.style.background = theme.colors.bgSecondary + '66';
-            }}
-          >
-            <div
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                background: theme.colors.accentGlow10,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 20,
-                color: theme.colors.accent,
-                fontFamily: theme.font.mono,
-              }}
-            >
-              {getTypeIcon(win.type)}
-            </div>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 500,
-                color: theme.colors.textPrimary,
-                fontFamily: theme.font.ui,
-                textAlign: 'center',
-                maxWidth: win.size.width - 32,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {win.title}
-            </div>
-            <div
-              style={{
-                fontSize: 9,
-                color: theme.colors.textTertiary,
-                fontFamily: theme.font.mono,
-                letterSpacing: 1,
-                textTransform: 'uppercase',
-              }}
-            >
-              {win.type}
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 }
