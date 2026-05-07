@@ -252,12 +252,12 @@ export function Desktop() {
           if (!isInsideWindow) handleBlurAll();
         }}
         onContextMenu={(e) => {
-          const target = e.target instanceof Element ? e.target : e.currentTarget;
-          const isInsideWindow = target.closest('[data-window-frame]') !== null;
-          if (!isInsideWindow) {
-            e.preventDefault();
-            setContextMenu({ visible: true, x: e.clientX, y: e.clientY });
-          }
+          const target = e.target as HTMLElement;
+          const isInsideWindow = target.closest?.('[data-window-frame]') !== null;
+          // TEMP: always show menu to diagnose issue
+          console.log('[ContextMenu] target:', target.tagName, 'isInsideWindow:', isInsideWindow);
+          e.preventDefault();
+          setContextMenu({ visible: true, x: e.clientX, y: e.clientY });
         }}
       >
         {monitors.map((monitor) => (

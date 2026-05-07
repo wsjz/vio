@@ -5,7 +5,7 @@ use commands::shell::{execute_command, execute_shell};
 use commands::fs::{list_directory, read_file, get_home_directory, write_file};
 use commands::network::{get_network_info, scan_network};
 use commands::log::get_system_logs;
-use commands::layout::{save_layout, load_layout, list_layouts, delete_layout, export_layout, import_layout, get_layouts_directory};
+use commands::layout::{save_layout, load_layout, list_layouts, delete_layout, export_layout, import_layout, get_layouts_directory, save_workspace_layout, load_workspace_layout};
 use commands::opencli::{check_opencli, install_opencli, pick_opencli_path};
 use commands::monitor::get_monitors;
 use commands::platform::get_platform;
@@ -51,6 +51,8 @@ pub fn run() {
       export_layout,
       import_layout,
       get_layouts_directory,
+      save_workspace_layout,
+      load_workspace_layout,
       check_opencli,
       install_opencli,
       pick_opencli_path,
