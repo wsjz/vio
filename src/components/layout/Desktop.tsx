@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Stable transition config to prevent re-animation on re-render
+const WORKSPACE_TRANSITION = { duration: 0.35, ease: [0.32, 0.72, 0, 1] as const };
 import { WindowFrame } from '../window/WindowFrame';
 import { TaskBar } from './TaskBar';
 import { Launcher } from './Launcher';
@@ -7,6 +10,8 @@ import { AppGrid } from './AppGrid';
 import { ContextMenu } from './ContextMenu';
 import { ParticleBackground } from '../effects/ParticleBackground';
 import { ScanlineOverlay } from '../effects/ScanlineOverlay';
+import { NoiseOverlay } from '../effects/NoiseOverlay';
+import { MonitorIndicator } from './MonitorIndicator';
 import { StartupScreen } from '../effects/StartupScreen';
 import { useVioStore } from '../../core/stores/vioStore';
 import { useUiStore } from '../../core/stores/uiStore';
@@ -236,30 +241,48 @@ export function Desktop() {
         }}
       />
       <ScanlineOverlay intensity={scanlineIntensity} color={accent} disableAnimation={lowPowerMode} />
+      <NoiseOverlay />
 
       {/* Desktop area */}
       <div
         style={{ position: 'fixed', inset: 0, zIndex: 10 }}
         onMouseDown={(e) => {
-          const isInsideWindow = (e.target as HTMLElement).closest('[data-window-frame]') !== null;
+          const target = e.target instanceof Element ? e.target : e.currentTarget;
+          const isInsideWindow = target.closest('[data-window-frame]') !== null;
           if (!isInsideWindow) handleBlurAll();
         }}
         onContextMenu={(e) => {
-          const isInsideWindow = (e.target as HTMLElement).closest('[data-window-frame]') !== null;
+          const target = e.target instanceof Element ? e.target : e.currentTarget;
+          const isInsideWindow = target.closest('[data-window-frame]') !== null;
           if (!isInsideWindow) {
             e.preventDefault();
             setContextMenu({ visible: true, x: e.clientX, y: e.clientY });
           }
         }}
       >
-        <AnimatePresence>
-          {visibleContainers.map((container) => (
-            <WindowFrame
-              key={container.id}
-              container={container}
-            />
-          ))}
-        </AnimatePresence>
+        {monitors.map((monitor) => (
+          <div key={monitor.id} style={{ position: 'absolute', inset: 0 }}>
+            {monitor.workspaces
+              .filter((w) => w.isActive)
+              .map((workspace) => (
+                <motion.div
+                  key={workspace.id}
+                  initial={{ x: '10%', opacity: 0, scale: 0.97 }}
+                  animate={{ x: 0, opacity: 1, scale: 1 }}
+                  transition={WORKSPACE_TRANSITION}
+                  style={{ position: 'absolute', inset: 0 }}
+                >
+                  <AnimatePresence>
+                    {workspace.containers
+                      .filter((c) => !c.windows.every((w) => w.isMinimized))
+                      .map((container) => (
+                        <WindowFrame key={container.id} container={container} />
+                      ))}
+                  </AnimatePresence>
+                </motion.div>
+              ))}
+          </div>
+        ))}
       </div>
 
       {/* Launcher */}
@@ -283,6 +306,15 @@ export function Desktop() {
         onBlurAll={handleBlurAll}
         onOpenAppGrid={() => setAppGridVisible(true)}
       />
+
+      {/* Monitor Indicators */}
+      {monitors.map((monitor) => (
+        <MonitorIndicator
+          key={monitor.id}
+          monitor={monitor}
+          position={monitor.isPrimary ? 'bottom-right' : 'bottom-left'}
+        />
+      ))}
 
       {/* Context Menu */}
       <ContextMenu

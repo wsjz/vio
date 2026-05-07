@@ -1,4 +1,5 @@
 import type { TerminalType } from '../../types';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useThemeStore } from '../../core/theme-engine/themeStore';
 import { usePluginStore } from '../../core/plugin-system';
 import { useMemo } from 'react';
@@ -36,8 +37,6 @@ export function Launcher({ visible, onSelect, onClose }: LauncherProps) {
     return [...BUILTIN_ITEMS, ...pluginItems];
   }, [getEnabledPlugins]);
 
-  if (!visible) return null;
-
   const accent = theme.colors.accent;
   const accentDim = theme.colors.accentDim;
   const accentGlow = theme.colors.accentGlow;
@@ -47,23 +46,29 @@ export function Launcher({ visible, onSelect, onClose }: LauncherProps) {
   const bgSecondary = theme.colors.bgSecondary;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: 600,
-        maxHeight: 400,
-        background: bgSecondary + 'f2',
-        backdropFilter: 'blur(20px)',
-        border: `1px solid ${theme.colors.accentDim20}`,
-        borderRadius: 6,
-        boxShadow: `0 20px 60px rgba(0,0,0,0.8), 0 0 20px ${accentGlow}`,
-        zIndex: 2000,
-        overflow: 'hidden',
-      }}
-    >
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8, borderRadius: '50%' }}
+          animate={{ opacity: 1, scale: 1, borderRadius: 6 }}
+          exit={{ opacity: 0, scale: 0.8, borderRadius: '50%' }}
+          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+          style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 600,
+            maxHeight: 400,
+            background: bgSecondary + 'f2',
+            backdropFilter: 'blur(20px)',
+            border: `1px solid ${theme.colors.accentDim20}`,
+            boxShadow: `0 20px 60px rgba(0,0,0,0.8), 0 0 20px ${accentGlow}`,
+            zIndex: 2000,
+            overflow: 'hidden',
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
       <input
         style={{
           width: '100%',
@@ -152,6 +157,8 @@ export function Launcher({ visible, onSelect, onClose }: LauncherProps) {
       >
         Press 1~{allItems.length} to select · Escape to close · Ctrl+T to toggle
       </div>
-    </div>
+    </motion.div>
+    )}
+  </AnimatePresence>
   );
 }

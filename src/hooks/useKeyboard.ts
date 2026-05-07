@@ -17,6 +17,7 @@ const QUICK_LAUNCH: TerminalType[] = [
   'map',
   'media-player',
   'viewer-3d',
+  'settings',
 ];
 
 export function useKeyboard() {
@@ -73,7 +74,7 @@ export function useKeyboard() {
       // Quick launch from launcher — number keys WITHOUT modifier
       if (launcherOpen) {
         const num = parseInt(e.key, 10);
-        if (num >= 1 && num <= QUICK_LAUNCH.length) {
+        if (!isNaN(num) && num >= 1 && num <= QUICK_LAUNCH.length) {
           e.preventDefault();
           useVioStore.getState().createWindow(QUICK_LAUNCH[num - 1]);
           setLauncherVisible(false);
@@ -188,7 +189,7 @@ export function useKeyboard() {
 
       // Quick launch terminals via modifier + 1~9 (when launcher is NOT open)
       const num = parseInt(e.key, 10);
-      if (num >= 1 && num <= QUICK_LAUNCH.length) {
+      if (!isNaN(num) && num >= 1 && num <= QUICK_LAUNCH.length) {
         e.preventDefault();
         useVioStore.getState().createWindow(QUICK_LAUNCH[num - 1]);
         return;

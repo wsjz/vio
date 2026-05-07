@@ -1,6 +1,9 @@
+// src/components/layout/AppGrid.tsx
 import { useRef, useState, useCallback, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useThemeStore } from '../../core/theme-engine/themeStore';
 import { useVioStore } from '../../core/stores/vioStore';
+import { staggerContainer, staggerItem } from '../../lib/animations';
 
 interface AppGridProps {
   visible: boolean;
@@ -17,7 +20,6 @@ export function AppGrid({ visible, onClose }: AppGridProps) {
   const { theme } = useThemeStore();
   const { monitors, switchWorkspace, focusWindow } = useVioStore();
 
-  // Get all visible containers from active workspaces
   const containers = monitors.flatMap((m) =>
     m.workspaces
       .filter((w) => w.isActive)
@@ -32,25 +34,27 @@ export function AppGrid({ visible, onClose }: AppGridProps) {
 
   useEffect(() => {
     if (visible) setOrder(containers.map((c) => c.id));
-  }, [visible, containers.length]);
+  }, [visible, containers.map((c) => c.id).join(',')]);
 
+  // Drag state — use refs for values needed inside event listeners (avoids stale closure)
   const dragRef = useRef<{
     fromIdx: number;
     ghost: HTMLDivElement;
-    startX: number;
-    startY: number;
     offsetX: number;
     offsetY: number;
+    hasDragged: boolean;
+    currentDropIdx: number;
   } | null>(null);
 
+  // UI-only state (for rendering placeholder / drop target visuals)
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
 
-  // Keyboard: Esc/Enter to close
+  // Keyboard: Esc to close
   useEffect(() => {
     if (!visible) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' || e.key === 'Enter') onClose();
+      if (e.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -115,10 +119,10 @@ export function AppGrid({ visible, onClose }: AppGridProps) {
       dragRef.current = {
         fromIdx: idx,
         ghost,
-        startX: rect.left,
-        startY: rect.top,
         offsetX: e.clientX - rect.left,
         offsetY: e.clientY - rect.top,
+        hasDragged: false,
+        currentDropIdx: idx,
       };
       setDraggingIdx(idx);
       setDropIdx(idx);
@@ -126,6 +130,7 @@ export function AppGrid({ visible, onClose }: AppGridProps) {
       const onMove = (ev: MouseEvent) => {
         const d = dragRef.current;
         if (!d) return;
+        d.hasDragged = true;
         d.ghost.style.left = `${ev.clientX - d.offsetX}px`;
         d.ghost.style.top = `${ev.clientY - d.offsetY}px`;
 
@@ -143,7 +148,10 @@ export function AppGrid({ visible, onClose }: AppGridProps) {
             bestIdx = i;
           }
         });
-        if (bestIdx !== dropIdx) setDropIdx(bestIdx);
+        if (bestIdx !== d.currentDropIdx) {
+          d.currentDropIdx = bestIdx;
+          setDropIdx(bestIdx);
+        }
       };
 
       const onUp = () => {
@@ -152,7 +160,7 @@ export function AppGrid({ visible, onClose }: AppGridProps) {
         document.body.removeChild(d.ghost);
 
         const from = d.fromIdx;
-        const to = dropIdx ?? from;
+        const to = d.currentDropIdx;
         if (from !== to) {
           setOrder((prev) => {
             const pageStart = currentPage * perPage;
@@ -179,15 +187,15 @@ export function AppGrid({ visible, onClose }: AppGridProps) {
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
     },
-    [dropIdx, pageItems, containerMap, theme, currentPage, perPage]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pageItems, containerMap, theme, currentPage, perPage]
   );
 
   const handleClickCard = (containerId: string) => {
+    if (dragRef.current?.hasDragged) return;
     const container = containerMap.get(containerId);
     if (!container) return;
-    // Switch to the workspace containing this container
     switchWorkspace(container.monitorId, container.workspaceId);
-    // Focus the active window in the container
     const activeWin = container.windows.find((w) => w.id === container.activeWindowId);
     if (activeWin) focusWindow(activeWin.id);
     onClose();
@@ -205,6 +213,7 @@ export function AppGrid({ visible, onClose }: AppGridProps) {
         backdropFilter: 'blur(8px)',
       }}
       onMouseDown={(e) => {
+        e.stopPropagation();
         if (e.target === e.currentTarget) onClose();
       }}
     >
@@ -229,7 +238,11 @@ export function AppGrid({ visible, onClose }: AppGridProps) {
       </div>
 
       {/* Cards grid */}
-      <div
+      <motion.div
+        variants={staggerContainer}
+        initial="initial"
+        animate="animate"
+        exit="exit"
         style={{
           position: 'fixed',
           top: TOP_OFFSET,
@@ -291,16 +304,12 @@ export function AppGrid({ visible, onClose }: AppGridProps) {
           }
 
           return (
-            <div
+            <motion.div
               key={containerId}
+              variants={staggerItem}
               data-grid-slot
               onMouseDown={(e) => handleMouseDown(e, i)}
-              onClick={(e) => {
-                // Only handle click if not dragging
-                if (draggingIdx === null) {
-                  handleClickCard(containerId);
-                }
-              }}
+              onClick={() => handleClickCard(containerId)}
               style={{
                 width: CARD_W,
                 height: CARD_H,
@@ -389,10 +398,10 @@ export function AppGrid({ visible, onClose }: AppGridProps) {
                   {container.windows.length} tabs
                 </div>
               )}
-            </div>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
 
       {/* Pagination dots */}
       {totalPages > 1 && (

@@ -9,6 +9,7 @@ use commands::layout::{save_layout, load_layout, list_layouts, delete_layout, ex
 use commands::opencli::{check_opencli, install_opencli, pick_opencli_path};
 use commands::monitor::get_monitors;
 use commands::platform::get_platform;
+use commands::tray::{show_notification, set_window_title};
 use std::sync::Mutex;
 use sysinfo::System;
 
@@ -55,6 +56,8 @@ pub fn run() {
       pick_opencli_path,
       get_monitors,
       get_platform,
+      show_notification,
+      set_window_title,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

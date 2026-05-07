@@ -7,3 +7,4 @@ pub mod layout;
 pub mod opencli;
 pub mod monitor;
 pub mod platform;
+pub mod tray;

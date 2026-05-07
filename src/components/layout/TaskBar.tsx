@@ -5,6 +5,7 @@ import { useThemeStore } from '../../core/theme-engine/themeStore';
 import { TASKBAR_HEIGHT } from '../../core/constants';
 import { ContextMenu } from './ContextMenu';
 import { WorkspaceIndicator } from './WorkspaceIndicator';
+import { NotificationPanel, type Notification } from './NotificationPanel';
 
 interface TaskBarProps {
   onToggleLauncher: () => void;
@@ -43,6 +44,10 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll, o
   // Rename state
   const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
+
+  // Notification state
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   // Clock: update DOM directly via ref to avoid full TaskBar re-render every second
   useEffect(() => {
@@ -298,6 +303,43 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll, o
         )}
       </div>
 
+      {/* Notification bell */}
+      <button
+        onClick={() => setNotificationsOpen((v) => !v)}
+        style={{
+          padding: '4px 10px',
+          fontSize: 11,
+          borderRadius: 3,
+          cursor: 'default',
+          fontFamily: theme.font.ui,
+          letterSpacing: 1,
+          color: textSecondary,
+          border: '1px solid transparent',
+          background: 'transparent',
+          flexShrink: 0,
+          whiteSpace: 'nowrap',
+          position: 'relative',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = accent; e.currentTarget.style.borderColor = theme.colors.accentDim20; }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = textSecondary; e.currentTarget.style.borderColor = 'transparent'; }}
+      >
+        <span style={{ fontSize: 10, letterSpacing: 1 }}>ALERT</span>
+        {notifications.length > 0 && (
+          <span
+            style={{
+              position: 'absolute',
+              top: -2,
+              right: 2,
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: theme.colors.accent,
+              boxShadow: `0 0 4px ${theme.colors.accentGlow25}`,
+            }}
+          />
+        )}
+      </button>
+
       <button
         onClick={() => createWindow('settings')}
         style={{
@@ -354,6 +396,15 @@ export function TaskBar({ onToggleLauncher, windows, onFocusWindow, onBlurAll, o
           theme={theme}
         />
       )}
+
+      {/* Notification Panel */}
+      <NotificationPanel
+        visible={notificationsOpen}
+        notifications={notifications}
+        onClose={() => setNotificationsOpen(false)}
+        onClear={() => setNotifications([])}
+        onDismiss={(id) => setNotifications((prev) => prev.filter((n) => n.id !== id))}
+      />
     </div>
   );
 }

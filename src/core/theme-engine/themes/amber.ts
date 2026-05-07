@@ -37,9 +37,9 @@ export const amberTheme: ThemeConfig = {
     accentGlow40: 'rgba(255, 176, 0, 0.4)',
   },
   font: {
-    display: 'Orbitron, sans-serif',
-    mono: 'JetBrains Mono, monospace',
-    ui: 'Rajdhani, sans-serif',
+    display: "'Space Grotesk', 'Orbitron', sans-serif",
+    mono: "'Geist Mono', 'JetBrains Mono', monospace",
+    ui: "'Plus Jakarta Sans', 'Rajdhani', sans-serif",
   },
   effects: {
     scanline: true,
